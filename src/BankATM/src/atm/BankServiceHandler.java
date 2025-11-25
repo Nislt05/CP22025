@@ -1,0 +1,10 @@
+package BankATM.src.atm;
+
+import BankATM.src.common.CommandDTO;
+
+import java.nio.ByteBuffer;
+import java.nio.channels.CompletionHandler;
+
+public interface BankServiceHandler {
+	void send(CommandDTO commandDTO, CompletionHandler<Integer, ByteBuffer> handlers);
+}
