@@ -58,6 +58,51 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
     }
 
     //*******************************************************************
+    // Name : printAccountList()
+    // Type : Method
+    // Description :  모든 고객의 계좌 정보 출력
+    //*******************************************************************
+    public void printAccountList() {
+        addMsg("=== 전체 계좌 목록 출력 ===");
+        if (customerList == null || customerList.isEmpty()) {
+            addMsg("등록된 계좌가 없습니다.");
+            return;
+        }
+
+        for (CustomerVO customer : customerList) {
+            AccountVO account = customer.getAccount();
+            if (account != null) {
+                String info = String.format("계좌번호: %s, 예금주: %s, 잔액: %d원, 개설일: %s",
+                        account.getAccountNo(), account.getOwner(), account.getBalance(), account.getOpenDate());
+                addMsg(info);
+            } else {
+                addMsg("고객(" + customer.getName() + ")의 계좌 정보가 없습니다.");
+            }
+            addMsg("=========================");
+        }
+    }
+
+    //*******************************************************************
+    // Name : printCustomerList()
+    // Type : Method
+    // Description :  모든 고객 정보 출력
+    //*******************************************************************
+    public void printCustomerList() {
+        addMsg("=== 전체 고객 목록 출력 ===");
+        if (customerList == null || customerList.isEmpty()) {
+            addMsg("등록된 고객이 없습니다.");
+            return;
+        }
+
+        for (CustomerVO customer : customerList) {
+            String info = String.format("ID: %s, 이름: %s, 전화번호: %s",
+                    customer.getId(), customer.getName(), customer.getPhone());
+            addMsg(info);
+        }
+        addMsg("=========================");
+    }
+
+    //*******************************************************************
     // Name : GetDefaultCustomers()
     // Type : Method
     // Description :  Server 시작 시 저장된 계좌 정보가 없으면 Default 계좌를 생성하는 기능
