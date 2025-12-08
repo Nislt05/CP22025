@@ -111,35 +111,63 @@ public class PanLogin extends JPanel implements ActionListener {
     //                ATMMain의 Send 기능을 호출하여 서버에 로그인 요청 메시지를 전달 하는 기능.
     //*******************************************************************
     public void Login() {
+        // 1. 사용자가 텍스트 필드에 입력한 ID와 password값 가져오기
         String id = Text_ID.getText();
         String password = Text_Password.getText();
+
+        // 메인 프레임에 ID 저장
         MainFrame.userId = id;
 
+        // 2. 서버로 보낼 데이터 객체 생성
         CommandDTO loginCommand = new CommandDTO(RequestType.LOGIN, id, password);
+
+        // 3. 비동기 전송 시작
+        // 두 번째 인자인 CompletionHandler는 "통신이 완료되었을 때" 실행될 콜백이다.
         MainFrame.send(loginCommand, new CompletionHandler<>() {
+
+            // [성공 시] 서버와 통신이 성공적으로 끝나고 데이터를 받았을 때 실행된다.
             @Override
             public void completed(Integer result, ByteBuffer attachment) {
+                // result : 읽어들인 바이트 수, -1이면 연결이 끊겼다는 뜻이다.
                 if (result == -1) {
                     return;
                 }
 
-                // Flip the buffer for reading mode
-//                attachment.flip();
+                // [중요] NIO 버퍼 처리
+                // flip()은 쓰기 모드 -> 읽기 모드로 전환하는 메서드입니다.
+                attachment.flip();
+
                 try {
+                    // 4. 역직렬화 : 바이트 데이터 -> 객체 변환
+                    // 자바가 이해할 수 있는 스트림으로 변환한다.
                     ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(attachment.array(), 0, attachment.limit());
                     ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
+
+                    // 스트림에서 CommandDTO 객체를 꺼낸다. (서버가 보낸 응답)
                     CommandDTO command = (CommandDTO) objectInputStream.readObject();
 
+                    // 5. UI 업데이트
+                    // invokeLater를 이용해 화면 갱신 작업을 예약한다.
                     SwingUtilities.invokeLater(() -> {
                         String contentText = null;
+
+                        // 로그인 성공 시
                         if (command.getResponseType() == ResponseType.SUCCESS) {
-                            MainFrame.userId = id;
+                            MainFrame.userId = id; // 로그인 유저 ID 확정
                             contentText = "로그인되었습니다.";
+
+                            // 성공 메시지 창 띄우기
                             JOptionPane.showMessageDialog(null, contentText, "SUCCESS_MESSAGE", JOptionPane.PLAIN_MESSAGE);
+
+                            // 현재 로그인 패널 숨기고 메인 화면으로 전환
                             setVisible(false);
                             MainFrame.display("Main");
+
+                        // 로그인 실패 시
                         } else if (command.getResponseType() == ResponseType.FAILURE) {
                             contentText = "아이디 또는 비밀번호가 일치하지 않습니다.";
+
+                            // 에러 메시지 띄우기
                             JOptionPane.showMessageDialog(null, contentText, "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE);
                         } else {
                             contentText = "ERROR.";
@@ -150,11 +178,13 @@ public class PanLogin extends JPanel implements ActionListener {
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
                 } finally {
+                    // 다음 통신을 위해 버퍼 초기화
                     // Clear buffer for next write operation
                     attachment.clear();
                 }
             }
 
+            // [실패 시] 통신 자체가 실패했을 때 실행된다.
             @Override
             public void failed(Throwable exc, ByteBuffer attachment) {
                 JOptionPane.showMessageDialog(null, "서버 통신 실패: " + exc.getMessage(), "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE);
