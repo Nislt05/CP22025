@@ -1,18 +1,21 @@
-package BankServer.src.common;
+package BankServer.src.common; // BankATM 쪽은 패키지명이 다를 수 있으니 주의하세요
 
-
-//*******************************************************************
-// Name : RequestType
-// Type : Enum
-// Description :  ATM 이 Server에 요청할 기능을 Enum으로 나타낸 열거형 데이터를 구현
-//                생성자와, 오브젝트 내부 데이터 get, set 동작이 구현되어 있다.
-//*******************************************************************
 public enum RequestType {
     VIEW("계좌조회", 10),
     TRANSFER("계좌이체", 20),
     DEPOSIT("입금", 30),
     WITHDRAW("출금", 40),
     LOGIN("로그인", 50),
+
+    // --- 관리자 기능 추가 ---
+    MANAGER_LOGIN("관리자 로그인", 60),
+    ADD_CUSTOMER("고객 추가", 70),
+    ADD_ACCOUNT("계좌 추가", 71),
+    DELETE_CUSTOMER("고객 삭제", 72),
+    DELETE_ACCOUNT("계좌 삭제", 73),
+    ALL_CUSTOMERS("전체 고객 조회", 80),
+    ALL_ACCOUNTS("전체 계좌 조회", 81),
+
     BANK_INFO("은행 정보", 99);
 
     private String name;
