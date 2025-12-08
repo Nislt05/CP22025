@@ -44,7 +44,7 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
     //*******************************************************************
     public ServerMain() {
         InitGui();
-        customerList = ReadCustomerFile("./Account.txt");
+        customerList = ReadCustomerFile("src/Account.txt");
         setVisible(true);
 
         // WindowListener 추가
@@ -52,7 +52,7 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
             @Override
             public void windowClosing(WindowEvent e) {
                 // 프레임이 종료될 때 SaveCustomerFile 메서드 호출
-                SaveCustomerFile(customerList, "./Account.txt");
+                SaveCustomerFile(customerList, "src/Account.txt");
             }
         });
     }
