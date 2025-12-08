@@ -135,7 +135,8 @@ public class PanLogin extends JPanel implements ActionListener {
 
                 // [중요] NIO 버퍼 처리
                 // flip()은 쓰기 모드 -> 읽기 모드로 전환하는 메서드입니다.
-                attachment.flip();
+                // 주석 그대로 두기!!
+                // attachment.flip();
 
                 try {
                     // 4. 역직렬화 : 바이트 데이터 -> 객체 변환

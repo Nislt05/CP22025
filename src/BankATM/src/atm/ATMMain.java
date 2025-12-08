@@ -246,35 +246,69 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
     //*******************************************************************
     @Override
     public void send(CommandDTO commandDTO, CompletionHandler<Integer, ByteBuffer> handlers) {
-        commandDTO.setId(userId);
-        try {
-            // Serialize the CommandDTO object to a byte array
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-            objectOutputStream.writeObject(commandDTO);
-            objectOutputStream.flush();
+        new Thread(() -> {
+           commandDTO.setId(userId);
+            try {
+                // 1. 데이터 전송 (Write)
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+                objectOutputStream.writeObject(commandDTO);
+                objectOutputStream.flush();
 
-            // Send to server
-            outputStream.write(byteArrayOutputStream.toByteArray());
-            outputStream.flush();
+                outputStream.write(byteArrayOutputStream.toByteArray());
+                outputStream.flush();
 
-            // Read the response from the server
-            byte[] buffer = new byte[1024];
-            int bytesRead = inputStream.read(buffer);
-            System.out.println(bytesRead+" bytes read");
-            if (bytesRead != -1) {
-                ByteBuffer responseBuffer = ByteBuffer.wrap(buffer, 0, bytesRead);
-                handlers.completed(bytesRead, responseBuffer);
-            } else {
-                // If there's a failure
-                handlers.failed(new IOException("No response from server"), null);
+                // 2. 응답 대기 (Read)
+                byte[] buffer = new byte[1024];
+                int bytesRead = inputStream.read(buffer);
+                System.out.println(bytesRead + " bytes read");
+
+                if (bytesRead != -1) {
+                    // 3. 응답 처리
+                    // wrap으로 만든 버퍼는 이미 읽기 준비가 된 상태입니다. (position=0, limit=데이터크기)
+                    ByteBuffer responseBuffer = ByteBuffer.wrap(buffer, 0, bytesRead);
+
+                    // 콜백 호출
+                    handlers.completed(bytesRead, responseBuffer);
+                } else {
+                    handlers.failed(new IOException("No response from server"), null);
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                disconnectServer();
+                handlers.failed(e, null);
             }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            disconnectServer();
-            handlers.failed(e, null);
-        }
+        }).start();
+//        commandDTO.setId(userId);
+//        try {
+//            // Serialize the CommandDTO object to a byte array
+//            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+//            objectOutputStream.writeObject(commandDTO);
+//            objectOutputStream.flush();
+//
+//            // Send to server
+//            outputStream.write(byteArrayOutputStream.toByteArray());
+//            outputStream.flush();
+//
+//            // Read the response from the server
+//            byte[] buffer = new byte[1024];
+//            int bytesRead = inputStream.read(buffer);
+//            System.out.println(bytesRead+" bytes read");
+//            if (bytesRead != -1) {
+//                ByteBuffer responseBuffer = ByteBuffer.wrap(buffer, 0, bytesRead);
+//                handlers.completed(bytesRead, responseBuffer);
+//            } else {
+//                // If there's a failure
+//                handlers.failed(new IOException("No response from server"), null);
+//            }
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            disconnectServer();
+//            handlers.failed(e, null);
+//        }
     }
 
     public static void main(String[] args) {
