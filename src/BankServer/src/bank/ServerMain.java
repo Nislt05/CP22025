@@ -288,6 +288,110 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
         SwingUtilities.invokeLater(() -> Label_UserCount_2.setText(String.valueOf(clientList.size())));
     }
 
+    //*******************************************************************
+    // Name : addCustomer (신규 고객 추가)
+    // Requirements : 신규고객추가
+    // Description : 중복된 ID가 없는지 확인 후 새로운 고객을 리스트에 추가한다.
+    //*******************************************************************
+    public boolean addCustomer(String id, String name, String password, String address, String phone) {
+        // ID 중복 체크
+        for (CustomerVO c : customerList) {
+            if (c.getId().equals(id)) {
+                System.out.println("오류: 이미 존재하는 ID입니다.");
+                return false;
+            }
+        }
+
+        // 신규 고객 생성 및 추가
+        CustomerVO newCustomer = new CustomerVO(id, name, password);
+        newCustomer.setAddress(address);
+        newCustomer.setPhone(phone);
+
+        customerList.add(newCustomer);
+        System.out.println("고객 추가 완료: " + name);
+
+        // 변경된 리스트를 파일에 저장 (데이터 영속성 유지)
+        SaveCustomerFile(customerList, "./Account.txt");
+        return true;
+    }
+
+    //*******************************************************************
+    // Name : deleteCustomer (고객 삭제)
+    // Requirements : 고객삭제
+    // Description : ID를 이용해 고객을 찾아 리스트에서 삭제한다.
+    //*******************************************************************
+    public boolean deleteCustomer(String id) {
+        for (CustomerVO c : customerList) {
+            if (c.getId().equals(id)) {
+                customerList.remove(c);
+                System.out.println("고객 삭제 완료: " + id);
+
+                // 변경사항 저장
+                SaveCustomerFile(customerList, "./Account.txt");
+                return true;
+            }
+        }
+        System.out.println("오류: 해당 ID의 고객을 찾을 수 없습니다.");
+        return false;
+    }
+
+    //*******************************************************************
+    // Name : addAccount (계좌 추가)
+    // Requirements : 계좌추가
+    // Description : 특정 고객에게 새로운 계좌를 발급한다.
+    // Warning : 현재 CustomerVO 구조상 기존 계좌가 있다면 덮어씌워집니다. (추후 List 수정 필요)
+    //*******************************************************************
+    public boolean addAccount(String customerId, String accountNo, AccountType type, long balance) {
+        for (CustomerVO c : customerList) {
+            if (c.getId().equals(customerId)) {
+                // 계좌 번호 중복 체크 (전체 고객 대상)
+                for (CustomerVO other : customerList) {
+                    if (other.getAccount() != null && other.getAccount().getAccountNo().equals(accountNo)) {
+                        System.out.println("오류: 이미 존재하는 계좌번호입니다.");
+                        return false;
+                    }
+                }
+
+                // 새 계좌 생성
+                AccountVO newAccount = new AccountVO(c.getName(), accountNo, type, balance, Date.valueOf(LocalDate.now()));
+
+                // [중요] 현재는 계좌가 1개라 setAccount를 쓰지만, 추후 List<AccountVO>가 되면 add로 변경해야 함
+                c.setAccount(newAccount);
+
+                System.out.println("계좌 개설 완료: " + accountNo);
+                SaveCustomerFile(customerList, "./Account.txt");
+                return true;
+            }
+        }
+        System.out.println("오류: 고객을 찾을 수 없습니다.");
+        return false;
+    }
+
+    //*******************************************************************
+    // Name : deleteAccount (계좌 삭제)
+    // Requirements : 계좌삭제
+    // Description : 특정 고객의 특정 계좌를 삭제한다.
+    //*******************************************************************
+    public boolean deleteAccount(String customerId, String accountNo) {
+        for (CustomerVO c : customerList) {
+            if (c.getId().equals(customerId)) {
+                // 현재는 계좌가 1개이므로, 가지고 있는 계좌번호가 맞는지 확인 후 null 처리
+                if (c.getAccount() != null && c.getAccount().getAccountNo().equals(accountNo)) {
+                    c.setAccount(null);
+                    System.out.println("계좌 삭제 완료: " + accountNo);
+                    SaveCustomerFile(customerList, "./Account.txt");
+                    return true;
+                } else {
+                    System.out.println("오류: 해당 계좌가 존재하지 않거나 일치하지 않습니다.");
+                    return false;
+                }
+            }
+        }
+        System.out.println("오류: 고객을 찾을 수 없습니다.");
+        return false;
+    }
+
+
     @Override
     public void displayInfo(String msg) {
         addMsg(msg);
