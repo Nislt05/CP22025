@@ -113,7 +113,7 @@ public class PanDeposite extends JPanel implements ActionListener
     //*******************************************************************
     public void deposit() {
         long amount = Long.parseLong(Text_Amount.getText());
-        CommandDTO commandDTO = new CommandDTO(RequestType.DEPOSIT, ATMMain.userId, amount);
+        CommandDTO commandDTO = new CommandDTO(RequestType.DEPOSIT, ATMMain.userAccountNo, amount);
         MainFrame.send(commandDTO, new CompletionHandler<Integer, ByteBuffer>() {
             @Override
             public void completed(Integer result, ByteBuffer attachment) {

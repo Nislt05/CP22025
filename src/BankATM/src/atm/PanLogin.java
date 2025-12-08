@@ -149,30 +149,27 @@ public class PanLogin extends JPanel implements ActionListener {
 
                     // 5. UI 업데이트
                     // invokeLater를 이용해 화면 갱신 작업을 예약한다.
+                    // 5. UI 업데이트
                     SwingUtilities.invokeLater(() -> {
                         String contentText = null;
 
                         // 로그인 성공 시
                         if (command.getResponseType() == ResponseType.SUCCESS) {
-                            MainFrame.userId = id; // 로그인 유저 ID 확정
-                            contentText = "로그인되었습니다.";
+                            MainFrame.userId = id;
 
-                            // 성공 메시지 창 띄우기
-                            JOptionPane.showMessageDialog(null, contentText, "SUCCESS_MESSAGE", JOptionPane.PLAIN_MESSAGE);
+                            // [추가] 서버로부터 받은 계좌번호를 메인 프레임에 저장
+                            MainFrame.userAccountNo = command.getUserAccountNo();
 
-                            // 현재 로그인 패널 숨기고 메인 화면으로 전환
+                            contentText = "로그인되었습니다.\n계좌: " + MainFrame.userAccountNo;
+                            JOptionPane.showMessageDialog(null, contentText, "SUCCESS", JOptionPane.PLAIN_MESSAGE);
+
                             setVisible(false);
                             MainFrame.display("Main");
 
-                        // 로그인 실패 시
-                        } else if (command.getResponseType() == ResponseType.FAILURE) {
-                            contentText = "아이디 또는 비밀번호가 일치하지 않습니다.";
-
-                            // 에러 메시지 띄우기
-                            JOptionPane.showMessageDialog(null, contentText, "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE);
                         } else {
-                            contentText = "ERROR.";
-                            JOptionPane.showMessageDialog(null, contentText, "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE);
+                            // ... (실패 처리 기존과 동일)
+                            contentText = "로그인 실패";
+                            JOptionPane.showMessageDialog(null, contentText, "ERROR", JOptionPane.ERROR_MESSAGE);
                         }
                     });
 

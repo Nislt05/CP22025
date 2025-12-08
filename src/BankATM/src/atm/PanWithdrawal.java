@@ -111,7 +111,7 @@ public class PanWithdrawal extends JPanel implements ActionListener
     //*******************************************************************
     public void Withdrawal() {
         long amount = Long.parseLong(Text_Amount.getText());
-        CommandDTO commandDTO = new CommandDTO(RequestType.WITHDRAW, MainFrame.userId, amount);
+        CommandDTO commandDTO = new CommandDTO(RequestType.WITHDRAW, ATMMain.userAccountNo, amount);
         MainFrame.send(commandDTO, new CompletionHandler<Integer, ByteBuffer>()
         {
             @Override

@@ -97,6 +97,9 @@ public class PanViewAccount extends JPanel implements ActionListener
     //*******************************************************************
     public void GetBalance()
     {
+        CommandDTO cmd = new CommandDTO(RequestType.VIEW);
+        cmd.setUserAccountNo(ATMMain.userAccountNo);
+
         MainFrame.send(new CommandDTO(RequestType.VIEW), new CompletionHandler<Integer, ByteBuffer>() {
             @Override
             public void completed(Integer result, ByteBuffer attachment) {
