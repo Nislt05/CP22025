@@ -13,17 +13,11 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
-//*******************************************************************
-// Name : ServerMain
-// Type : Class
-// Description :  BankServer의 GUI 프레임이며, ATM과의 소켓통신을 담당한다.
-//                계좌 정보들을 보유하고 있으며, 관련 기능들을 가지고 있다.
-//*******************************************************************
-
-class ServerMain extends JFrame implements ActionListener, ClientHandler {
+public class ServerMain extends JFrame implements ActionListener, ClientHandler {
     private JLabel Label_UserCount;
     private JLabel Label_UserCount_2;
     private JToggleButton Btn_StartStop;
@@ -32,36 +26,27 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
     private JScrollPane sp;
 
     private ServerSocket serverSocket;
-    private List<CustomerVO> customerList;
+    // 변경: CustomerVO -> Customer
+    private List<Customer> customerList;
     private List<Client> clientList = new Vector<>();
     private boolean isRunning;
 
-    //*******************************************************************
-    // Name : ServerMain()
-    // Type : 생성자
-    // Description :  ServerMain Class의 생성자로서 계좌 정보를 Load 하고, GUI를 초기화 한다.
-    //                계좌 정보는 ./Account.txt에 저장하며 Server 실행시 Load, 종료시 Save 동작을 한다
-    //*******************************************************************
     public ServerMain() {
         InitGui();
-        customerList = ReadCustomerFile("src/Account.txt");
+        customerList = ReadCustomerFile("./Account.txt");
+        printCustomerList(); // 시작 시 콘솔에 정보 출력 (확인용)
+        printAccountList();
         setVisible(true);
 
-        // WindowListener 추가
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                // 프레임이 종료될 때 SaveCustomerFile 메서드 호출
-                SaveCustomerFile(customerList, "src/Account.txt");
+                SaveCustomerFile(customerList, "./Account.txt");
             }
         });
     }
 
-    //*******************************************************************
-    // Name : printAccountList()
-    // Type : Method
-    // Description :  모든 고객의 계좌 정보 출력
-    //*******************************************************************
+    // 변경: Customer 리스트 구조에 맞게 출력 로직 수정
     public void printAccountList() {
         addMsg("=== 전체 계좌 목록 출력 ===");
         if (customerList == null || customerList.isEmpty()) {
@@ -69,24 +54,14 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
             return;
         }
 
-        for (CustomerVO customer : customerList) {
-            AccountVO account = customer.getAccount();
-            if (account != null) {
-                String info = String.format("계좌번호: %s, 예금주: %s, 잔액: %d원, 개설일: %s",
-                        account.getAccountNo(), account.getOwner(), account.getBalance(), account.getOpenDate());
-                addMsg(info);
-            } else {
-                addMsg("고객(" + customer.getName() + ")의 계좌 정보가 없습니다.");
+        for (Customer customer : customerList) {
+            for (Account account : customer.getAccountList()) {
+                addMsg(account.display());
             }
-            addMsg("=========================");
         }
+        addMsg("=========================");
     }
 
-    //*******************************************************************
-    // Name : printCustomerList()
-    // Type : Method
-    // Description :  모든 고객 정보 출력
-    //*******************************************************************
     public void printCustomerList() {
         addMsg("=== 전체 고객 목록 출력 ===");
         if (customerList == null || customerList.isEmpty()) {
@@ -94,38 +69,42 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
             return;
         }
 
-        for (CustomerVO customer : customerList) {
-            String info = String.format("ID: %s, 이름: %s, 전화번호: %s",
-                    customer.getId(), customer.getName(), customer.getPhone());
+        for (Customer customer : customerList) {
+            String info = String.format("ID: %s, 이름: %s, 계좌수: %d",
+                    customer.getId(), customer.getName(), customer.getAccountList().size());
             addMsg(info);
         }
         addMsg("=========================");
     }
 
-    //*******************************************************************
-    // Name : GetDefaultCustomers()
-    // Type : Method
-    // Description :  Server 시작 시 저장된 계좌 정보가 없으면 Default 계좌를 생성하는 기능
-    //*******************************************************************
-    private static List<CustomerVO> GetDefaultCustomers() {
-        List<CustomerVO> customerList = new Vector<>();
-        customerList.add(new CustomerVO("202400001", "광수", "202400001",
-                new AccountVO("광수", "202400001", AccountType.CHECKING, 100_000_000, Date.valueOf(LocalDate.now()))));
-        customerList.add(new CustomerVO("202400002", "영철", "202400002",
-                new AccountVO("영철", "202400002", AccountType.CHECKING, 10_000_000, Date.valueOf(LocalDate.now()))));
-        customerList.add(new CustomerVO("202400003", "영숙", "202400003",
-                new AccountVO("영숙", "202400003", AccountType.CHECKING, 5_000_000, Date.valueOf(LocalDate.now()))));
-        customerList.add(new CustomerVO("202400004", "옥순", "202400004",
-                new AccountVO("옥순", "202400004", AccountType.CHECKING, 1_000_000, Date.valueOf(LocalDate.now()))));
+    // 변경: 초기 데이터 생성 시 Checking/Savings 및 연결 계좌 설정
+    private static List<Customer> GetDefaultCustomers() {
+        List<Customer> customerList = new ArrayList<>();
+
+        // 1. 광수: 당좌(Checking) + 저축(Savings) 보유, 서로 연결됨
+        Customer c1 = new Customer("202400001", "광수", "202400001");
+        SavingsAccount s1 = new SavingsAccount("광수", "111-1111", 5_000_000, Date.valueOf(LocalDate.now()), 0.02); // 이자율 2%
+        CheckingAccount k1 = new CheckingAccount("광수", "111-2222", 100_000, Date.valueOf(LocalDate.now()), s1); // 잔액 10만원, s1과 연결
+        c1.addAccount(s1);
+        c1.addAccount(k1);
+        customerList.add(c1);
+
+        // 2. 영철: 당좌만 보유 (연결 계좌 없음 -> 잔액 부족 시 에러 나야 함)
+        Customer c2 = new Customer("202400002", "영철", "202400002");
+        CheckingAccount k2 = new CheckingAccount("영철", "222-2222", 1_000_000, Date.valueOf(LocalDate.now()), null);
+        c2.addAccount(k2);
+        customerList.add(c2);
+
+        // 3. 영숙: 저축만 보유
+        Customer c3 = new Customer("202400003", "영숙", "202400003");
+        SavingsAccount s3 = new SavingsAccount("영숙", "333-3333", 10_000_000, Date.valueOf(LocalDate.now()), 0.05);
+        c3.addAccount(s3);
+        customerList.add(c3);
+
         return customerList;
     }
 
-    //*******************************************************************
-    // Name : SaveCustomerFile()
-    // Type : Method
-    // Description :  현재까지의 계좌 정보를 txt 파일로 저장하는 기능
-    //*******************************************************************
-    public void SaveCustomerFile(List<CustomerVO> customers, String filePath) {
+    public void SaveCustomerFile(List<Customer> customers, String filePath) {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
             oos.writeObject(customers);
             System.out.println("Objects saved to " + filePath);
@@ -134,30 +113,20 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
         }
     }
 
-    //*******************************************************************
-    // Name : SaveCustomerFile()
-    // Type : Method
-    // Description :  txt 파일로 저장된 계좌 정보를 Load 하는 기능
-    //*******************************************************************
-    public List<CustomerVO> ReadCustomerFile(String filePath) {
+    @SuppressWarnings("unchecked")
+    public List<Customer> ReadCustomerFile(String filePath) {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filePath))) {
-            List<CustomerVO> customers = (List<CustomerVO>) ois.readObject();
+            List<Customer> customers = (List<Customer>) ois.readObject();
             System.out.println("Objects read from " + filePath);
             return customers;
         } catch (IOException | ClassNotFoundException e) {
-            System.out.println("File not found. Initializing with default data.");
-            List<CustomerVO> defaultCustomers = GetDefaultCustomers();
+            System.out.println("File not found or incompatible. Initializing with default data.");
+            List<Customer> defaultCustomers = GetDefaultCustomers();
             SaveCustomerFile(defaultCustomers, filePath);
             return defaultCustomers;
         }
     }
 
-    //*******************************************************************
-    // Name : InitGui
-    // Type : Method
-    // Description :  ServerMain Class의 GUI 컴포넌트를 할당하고 초기화 한다.
-    //                ServerMain Frame은 서버 시작 버튼 및 텍스트 창 초기화 버튼을 가지고 있다
-    //*******************************************************************
     private void InitGui() {
         setTitle("서버 GUI");
         setSize(480, 320);
@@ -201,12 +170,6 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
         setVisible(true);
     }
 
-    //*******************************************************************
-    // Name : actionPerformed
-    // Type : Listener
-    // Description :  ServerMain Frame의 버튼 컴포넌트들의 동작을 구현한 부분
-    //                아래 코드에서는 서버 Start/Stop 토글 버튼 기능 및 텍스트창 초기화 버튼기능이 구현 되어 있다.
-    //*******************************************************************
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == Btn_StartStop) {
             if (Btn_StartStop.isSelected()) {
@@ -219,12 +182,6 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
         }
     }
 
-    //*******************************************************************
-    // Name : startServer
-    // Type : Method
-    // Description :  서버 소켓을 port 5001 로 bind 하여 open 하는 기능 및
-    //                클라이언트 소켓의 접속 시도시 accept 하여 연결 시키는 기능이 구현 되어 있다.
-    //*******************************************************************
     public void startServer() {
         isRunning = true;
         new Thread(() -> {
@@ -240,22 +197,15 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
                     addMsg("클라이언트 접속: " + clientSocket.getInetAddress());
                     Client client = new Client(clientSocket, ServerMain.this, customerList);
                     clientList.add(client);
-
-                    // Update the user count
                     SwingUtilities.invokeLater(() -> Label_UserCount_2.setText(String.valueOf(clientList.size())));
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                if(isRunning) e.printStackTrace();
                 stopServer();
             }
         }).start();
     }
 
-    //*******************************************************************
-    // Name : stopServer
-    // Type : Method
-    // Description :  서버 소켓을 연결 해제 하는 기능
-    //*******************************************************************
     public void stopServer() {
         isRunning = false;
         try {
@@ -273,18 +223,10 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
         }
     }
 
-    //*******************************************************************
-    // Name : removeClient()
-    // Type : Method
-    // Description :  클라이언트 소켓이 해제 되었을 때
-    //                ServerMain 의 clientList 리스트 에서 해당 인덱스를 제거하는 기능
-    //*******************************************************************
     @Override
     public void removeClient(Client client) {
         clientList.remove(client);
-        addMsg(client + " 제거됨");
-
-        // Update the user count
+        addMsg("클라이언트 연결 해제됨");
         SwingUtilities.invokeLater(() -> Label_UserCount_2.setText(String.valueOf(clientList.size())));
     }
 
@@ -295,9 +237,10 @@ class ServerMain extends JFrame implements ActionListener, ClientHandler {
 
     public void addMsg(String data) {
         TextArea_Log.append(data + "\n");
+        TextArea_Log.setCaretPosition(TextArea_Log.getDocument().getLength());
     }
 
-    public static void main(String[] args) throws Exception {
-        ServerMain f = new ServerMain();
+    public static void main(String[] args) {
+        new ServerMain();
     }
 }
