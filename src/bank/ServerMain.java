@@ -45,6 +45,7 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
     public ServerMain() {
         InitGui();
         customerList = ReadCustomerFile("./Account.txt");
+        printCustomerList(customerList);
         setVisible(true);
 
         // WindowListener 추가
@@ -55,6 +56,37 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
                 SaveCustomerFile(customerList, "./Account.txt");
             }
         });
+    }
+
+    public void printCustomerList(List<CustomerVO> allCustomers) {
+        addMsg("=== 고객별 계좌 보유 현황 ===");
+
+        for (CustomerVO customer : allCustomers) {
+            // 1. 문자열을 조립하기 위한 StringBuilder 생성
+            StringBuilder sb = new StringBuilder();
+
+            // 2. 고객 이름 추가
+            sb.append(customer.getName()).append(" ");
+
+            List<Account> accounts = customer.getAccountList();
+
+            if (accounts == null || accounts.isEmpty()) {
+                sb.append("(계좌 없음)");
+            } else {
+                // 3. 계좌 리스트 순회하며 이어 붙이기
+                for (int i = 0; i < accounts.size(); i++) {
+                    sb.append(accounts.get(i).getAccountNo());
+
+                    // 마지막 계좌가 아니면 쉼표 추가
+                    if (i < accounts.size() - 1) {
+                        sb.append(", ");
+                    }
+                }
+            }
+
+            // 4. 완성된 한 줄을 addMsg로 전송 (자동으로 줄바꿈 됨)
+            addMsg(sb.toString());
+        }
     }
 
     //*******************************************************************
