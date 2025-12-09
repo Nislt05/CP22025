@@ -112,24 +112,23 @@ public class Client {
     }
 
     private synchronized void login(CommandDTO commandDTO) {
-        // null 체크 추가 (안정성 강화)
+        // null 체크
         if (commandDTO.getId() == null || commandDTO.getPassword() == null) {
             commandDTO.setResponseType(ResponseType.FAILURE);
             send(commandDTO);
             return;
         }
 
-        Optional<CustomerVO> customer = this.customerList.stream()
-                .filter(customerVO -> Objects.equals(customerVO.getId(), commandDTO.getId())
-                        && Objects.equals(customerVO.getPassword(), commandDTO.getPassword()))
-                .findFirst();
+        // [수정] ServerMain의 authenticateUser 메소드 호출
+        // ClientHandler 인터페이스를 ServerMain으로 캐스팅해서 사용
+        ServerMain server = (ServerMain) handler;
+        CustomerVO customer = server.authenticateUser(commandDTO.getId(), commandDTO.getPassword());
 
-        if (customer.isPresent()) {
+        if (customer != null) {
             commandDTO.setResponseType(ResponseType.SUCCESS);
-            handler.displayInfo(customer.get().getName() + "님이 로그인하였습니다.");
+            handler.displayInfo(customer.getName() + "님이 로그인하였습니다.");
         } else {
             commandDTO.setResponseType(ResponseType.FAILURE);
-            // 로그인 실패 시에도 서버 로그에는 남겨서 확인 가능하게 함
             System.out.println("로그인 실패 - ID: " + commandDTO.getId());
         }
         send(commandDTO);

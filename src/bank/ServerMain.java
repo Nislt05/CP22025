@@ -179,8 +179,32 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
             TextArea_Log.setText(null);
         }//[추가된 부분]
         else if (e.getSource() == Btn_Manager) {
-            //관리자GUI실행 (현재 ServerMain 객체를 전달)
-            new ManagerGUI(this);
+            // [추가 구현] 관리자 인증 절차 (authenticateUser)
+            JPanel panel = new JPanel(new GridLayout(2, 2));
+            JTextField txtId = new JTextField();
+            JPasswordField txtPass = new JPasswordField();
+
+            panel.add(new JLabel("관리자 ID:"));
+            panel.add(txtId);
+            panel.add(new JLabel("비밀번호:"));
+            panel.add(txtPass);
+
+            // 로그인 팝업 띄우기
+            int option = JOptionPane.showConfirmDialog(this, panel, "관리자 로그인", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+            if (option == JOptionPane.OK_OPTION) {
+                String id = txtId.getText();
+                String pw = new String(txtPass.getPassword());
+
+                // 위에서 만든 관리자 인증 메소드 호출
+                if (authenticateManager(id, pw)) {
+                    new ManagerGUI(this); // 성공 시 GUI 오픈
+                    addMsg("관리자(" + id + ") 접속 성공");
+                } else {
+                    JOptionPane.showMessageDialog(this, "관리자 인증 실패\n(ID: admin / PW: 1234)", "경고", JOptionPane.ERROR_MESSAGE);
+                    addMsg("관리자 접속 실패 (ID: " + id + ")");
+                }
+            }
         }
     }
 
@@ -365,6 +389,93 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
 
     public void addMsg(String data) {
         TextArea_Log.append(data + "\n");
+    }
+
+    // ------------------------------------------------------------------
+    // [추가 구현] 설명서 요구사항: 통계 및 전체 출력 기능
+    // ------------------------------------------------------------------
+
+    // 1. 모든 고객 정보 출력 (printCustomerList) [cite: 47]
+    public void printCustomerList() {
+        addMsg("========================================");
+        addMsg("           [ 모든 고객 목록 출력 ]");
+        addMsg("----------------------------------------");
+        if (customerList.isEmpty()) {
+            addMsg("등록된 고객이 없습니다.");
+        } else {
+            for (CustomerVO c : customerList) {
+                String info = String.format("ID: %s | 이름: %s | 연락처: %s",
+                        c.getId(), c.getName(), c.getPhone());
+                addMsg(info);
+            }
+        }
+        addMsg("========================================");
+    }
+
+    // 2. 모든 계좌 정보 출력 (printAccountList) [cite: 47]
+    public void printAccountList() {
+        addMsg("========================================");
+        addMsg("           [ 모든 계좌 목록 출력 ]");
+        addMsg("----------------------------------------");
+        boolean hasAccount = false;
+
+        for (CustomerVO c : customerList) {
+            List<Account> accounts = c.getAccountList();
+            if (accounts != null && !accounts.isEmpty()) {
+                hasAccount = true;
+                for (Account a : accounts) {
+                    String info = String.format("[%s] 계좌: %s | 예금주: %s | 잔액: %,d원 | 타입: %s",
+                            c.getName(), a.getAccountNo(), a.getOwner(), a.getBalance(), a.getAccountType());
+                    addMsg(info);
+                }
+            }
+        }
+
+        if (!hasAccount) addMsg("등록된 계좌가 없습니다.");
+        addMsg("========================================");
+    }
+
+    // 3. 모든 고객의 수 출력 (getNumberOfCustomers) [cite: 48]
+    public void getNumberOfCustomers() {
+        int count = customerList.size();
+        addMsg("[통계] 현재 등록된 총 고객 수: " + count + "명");
+    }
+
+    // 4. 총 보유 잔고 출력 (getTotalBankBalance) [cite: 48]
+    public void getTotalBankBalance() {
+        long totalBalance = 0;
+
+        for (CustomerVO c : customerList) {
+            List<Account> accounts = c.getAccountList();
+            if (accounts != null) {
+                for (Account a : accounts) {
+                    totalBalance += a.getBalance();
+                }
+            }
+        }
+        addMsg("[통계] 은행 총 보유 잔고: " + String.format("%,d", totalBalance) + "원");
+    }
+
+    // ------------------------------------------------------------------
+    // [요구사항 구현] authenticateUser: 고객 및 관리자 권한 인증
+    // ------------------------------------------------------------------
+
+    // 1. 고객 인증 (ATM 로그인용)
+    public CustomerVO authenticateUser(String id, String password) {
+        // 고객 목록에서 일치하는 사용자 찾기
+        for (CustomerVO c : customerList) {
+            if (c.getId().equals(id) && c.getPassword().equals(password)) {
+                return c; // 인증 성공 시 고객 객체 반환
+            }
+        }
+        return null; // 인증 실패
+    }
+
+    // 2. 관리자 인증 (관리자 모드 접속용)
+    public boolean authenticateManager(String id, String password) {
+        // 실제로는 관리자 목록(ManagerList)이 있어야 하지만,
+        // 현재 구현상 'admin' 계정 하나로 하드코딩하여 처리합니다.
+        return "admin".equals(id) && "1234".equals(password);
     }
 
     public static void main(String[] args) throws Exception {
