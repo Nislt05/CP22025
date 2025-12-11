@@ -1,15 +1,13 @@
 package common;
 
 import java.io.Serializable;
-
+import java.util.List; // [추가] List 임포트
 
 //*******************************************************************
 // Name : CommandDTO
 // Type : Class
-// Description :  ATM 과 Sever 사이의 통신 프로토콜을 정의 하기 위해 필요한 DTO(DataTransferObject)이다.
-//                생성자와, 오브젝트 내부 데이터 get, set 동작이 구현되어 있다.
+// Description :  ATM 과 Sever 사이의 통신 프로토콜을 정의 하기 위해 필요한 DTO
 //*******************************************************************
-
 public class CommandDTO implements Serializable {
     private RequestType requestType;
     private String id;
@@ -19,6 +17,9 @@ public class CommandDTO implements Serializable {
     private long amount;
     private long balance;
     private ResponseType responseType;
+
+    // [추가] 여러 계좌 정보를 담기 위한 리스트 필드
+    private List<String> accountList;
 
     public CommandDTO() {
     }
@@ -64,81 +65,33 @@ public class CommandDTO implements Serializable {
         this.balance = balance;
     }
 
-    public RequestType getRequestType() {
-        return requestType;
-    }
+    // --- Getters and Setters ---
 
-    public void setRequestType(RequestType requestType) {
-        this.requestType = requestType;
-    }
+    public RequestType getRequestType() { return requestType; }
+    public void setRequestType(RequestType requestType) { this.requestType = requestType; }
 
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
-    public String getPassword() {
-        return password;
-    }
+    public String getUserAccountNo() { return userAccountNo; }
+    public void setUserAccountNo(String userAccountNo) { this.userAccountNo = userAccountNo; }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    public String getReceivedAccountNo() { return receivedAccountNo; }
+    public void setReceivedAccountNo(String receivedAccountNo) { this.receivedAccountNo = receivedAccountNo; }
 
-    public String getUserAccountNo() {
-        return userAccountNo;
-    }
+    public long getAmount() { return amount; }
+    public void setAmount(long amount) { this.amount = amount; }
 
-    public void setUserAccountNo(String userAccountNo) {
-        this.userAccountNo = userAccountNo;
-    }
+    public long getBalance() { return balance; }
+    public void setBalance(long balance) { this.balance = balance; }
 
-    public String getReceivedAccountNo() {
-        return receivedAccountNo;
-    }
+    public ResponseType getResponseType() { return responseType; }
+    public void setResponseType(ResponseType responseType) { this.responseType = responseType; }
 
-    public void setReceivedAccountNo(String receivedAccountNo) {
-        this.receivedAccountNo = receivedAccountNo;
-    }
-
-    public long getAmount() {
-        return amount;
-    }
-
-    public void setAmount(long amount) {
-        this.amount = amount;
-    }
-
-    public long getBalance() {
-        return balance;
-    }
-
-    public void setBalance(long balance) {
-        this.balance = balance;
-    }
-
-    public ResponseType getResponseType() {
-        return responseType;
-    }
-
-    public void setResponseType(ResponseType responseType) {
-        this.responseType = responseType;
-    }
-
-    @Override
-    public String toString() {
-        return "CommandDTO{" +
-                "requestType=" + requestType +
-                ", id='" + id + '\'' +
-                ", password='" + password + '\'' +
-                ", userAccountNo='" + userAccountNo + '\'' +
-                ", receivedAccountNo='" + receivedAccountNo + '\'' +
-                ", amount=" + amount +
-                ", balance=" + balance +
-                ", responseType=" + responseType +
-                '}';
-    }
+    // [추가] accountList Getter/Setter
+    public List<String> getAccountList() { return accountList; }
+    public void setAccountList(List<String> accountList) { this.accountList = accountList; }
 }

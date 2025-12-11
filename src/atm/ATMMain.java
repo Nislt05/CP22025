@@ -41,23 +41,23 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
     private OutputStream outputStream;
     private InputStream inputStream;
 
-    //*******************************************************************
+    // *******************************************************************
     // Name : ATMMain()
     // Type : 생성자
-    // Description :  ATMMain Class의 생성자로서, 소켓통신을 시작하고 GUI를 초기화한다
-    //*******************************************************************
+    // Description : ATMMain Class의 생성자로서, 소켓통신을 시작하고 GUI를 초기화한다
+    // *******************************************************************
     public ATMMain() {
         startClient();
         InitGui();
         setVisible(true);
     }
 
-    //*******************************************************************
+    // *******************************************************************
     // Name : InitGui
     // Type : Method
-    // Description :  ATMMain Class의 GUI 컴포넌트를 할당하고 초기화한다.
-    //                ATMMain Frame은 각 화면에 해당하는 패널들을 가지고있다.
-    //*******************************************************************
+    // Description : ATMMain Class의 GUI 컴포넌트를 할당하고 초기화한다.
+    // ATMMain Frame은 각 화면에 해당하는 패널들을 가지고있다.
+    // *******************************************************************
     private void InitGui() {
         setLayout(null);
         setTitle("ATM GUI");
@@ -66,7 +66,7 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
         setResizable(false);
 
         try {
-            Image Img_CNULogo = ImageIO.read(new File("/Users/elsa/IdeaProjects/bank/src/cnu.jpg"));
+            Image Img_CNULogo = ImageIO.read(new File("C:\\Users\\lee26\\OneDrive\\Desktop\\BP\\src\\cnu.jpg"));
             IconCNU = new ImageIcon(Img_CNULogo.getScaledInstance(200, 200, Image.SCALE_SMOOTH));
             Label_Image = new JLabel();
             Label_Image.setIcon(IconCNU);
@@ -140,12 +140,12 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
         Pan_Login.setVisible(false);
     }
 
-    //*******************************************************************
+    // *******************************************************************
     // Name : actionPerformed
     // Type : Listener
-    // Description :  ATMMain Frame의 버튼 컴포넌트들의 동작을 구현한 부분
-    //                아래 코드에서는 각 기능별 화면으로 전환하는 코드가 작성되어있다.
-    //*******************************************************************
+    // Description : ATMMain Frame의 버튼 컴포넌트들의 동작을 구현한 부분
+    // 아래 코드에서는 각 기능별 화면으로 전환하는 코드가 작성되어있다.
+    // *******************************************************************
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == Btn_ViewAccount) {
             // 계좌 조회
@@ -199,11 +199,11 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
         Label_Image.setVisible(bOn);
     }
 
-    //*******************************************************************
+    // *******************************************************************
     // Name : startClient()
     // Type : Method
-    // Description :  ATMMain Class 가 가지고있는 소켓을 서버소켓에 접속시킨다
-    //*******************************************************************
+    // Description : ATMMain Class 가 가지고있는 소켓을 서버소켓에 접속시킨다
+    // *******************************************************************
     private void startClient() {
         try {
             socket = new Socket();
@@ -217,11 +217,11 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
         }
     }
 
-    //*******************************************************************
+    // *******************************************************************
     // Name : stopClient(), disconnectServer()
     // Type : Method
-    // Description :  ATMMain Class 가 가지고있는 소켓의 연결을 해제한다.
-    //*******************************************************************
+    // Description : ATMMain Class 가 가지고있는 소켓의 연결을 해제한다.
+    // *******************************************************************
     private void stopClient() {
         try {
             if (socket != null && !socket.isClosed()) {
@@ -237,13 +237,13 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
         stopClient();
     }
 
-    //*******************************************************************
+    // *******************************************************************
     // Name : send()
     // Type : Method
-    // Description :  CommandDTO를 매개변수로 하여 서버에 요청 메시지를 전달하는 메소드
-    //                CommandDTO Class 에는 ATM 서비스 요청에 필요한 데이터들이 정의 되어 있다.
-    //                ATMMain Class는 BankServiceHandler 인터페이스를 상속하였다.
-    //*******************************************************************
+    // Description : CommandDTO를 매개변수로 하여 서버에 요청 메시지를 전달하는 메소드
+    // CommandDTO Class 에는 ATM 서비스 요청에 필요한 데이터들이 정의 되어 있다.
+    // ATMMain Class는 BankServiceHandler 인터페이스를 상속하였다.
+    // *******************************************************************
     @Override
     public void send(CommandDTO commandDTO, CompletionHandler<Integer, ByteBuffer> handlers) {
         commandDTO.setId(userId);
@@ -261,7 +261,7 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
             // Read the response from the server
             byte[] buffer = new byte[1024];
             int bytesRead = inputStream.read(buffer);
-            System.out.println(bytesRead+" bytes read");
+            System.out.println(bytesRead + " bytes read");
             if (bytesRead != -1) {
                 ByteBuffer responseBuffer = ByteBuffer.wrap(buffer, 0, bytesRead);
                 handlers.completed(bytesRead, responseBuffer);

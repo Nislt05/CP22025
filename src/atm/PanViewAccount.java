@@ -4,6 +4,7 @@ import common.CommandDTO;
 import common.RequestType;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel; // [추가] 테이블 모델
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.ByteArrayInputStream;
@@ -11,28 +12,24 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.CompletionHandler;
+import java.util.List; // [추가] List
 
 //*******************************************************************
 // Name : PanViewAccount
 // Type : Class
-// Description :  계좌조회 화면 패널을 구현한 Class 이다.
+// Description :  계좌조회 화면 패널 (JTable 적용됨)
 //*******************************************************************
 public class PanViewAccount extends JPanel implements ActionListener
 {
-    private JLabel Label_Account;
-    private  JTextArea Text_Account;
-    private JLabel Label_balance;
-    private  JTextArea Text_balance;
+    // [수정] 기존 Label, TextArea 제거하고 Table 컴포넌트 추가
+    private JTable Table_Account;
+    private DefaultTableModel Model_Account;
+    private JScrollPane Scroll_Account;
 
     private JButton Btn_Close;
 
     ATMMain MainFrame;
 
-    //*******************************************************************
-    // Name : PanViewAccount()
-    // Type : 생성자
-    // Description :  PanViewAccount Class의 생성자 구현
-    //*******************************************************************
     public PanViewAccount(ATMMain parent)
     {
         MainFrame = parent;
@@ -42,45 +39,38 @@ public class PanViewAccount extends JPanel implements ActionListener
     //*******************************************************************
     // Name : InitGUI
     // Type : Method
-    // Description :  계좌조회 화면 패널의 GUI를 초기화 하는 메소드 구현
+    // Description :  GUI 초기화 (Table 구성)
     //*******************************************************************
     private void InitGUI()
     {
         setLayout(null);
         setBounds(0,0,480,320);
 
-        Label_Account = new JLabel("계좌 번호");
-        Label_Account.setBounds(0,70,100,20);
-        Label_Account.setHorizontalAlignment(JLabel.LEFT);
-        add(Label_Account);
+        // 1. 타이틀 라벨 (선택 사항, 깔끔하게 보이게 추가)
+        JLabel title = new JLabel("보유 계좌 목록");
+        title.setBounds(20, 10, 200, 30);
+        add(title);
 
-        Text_Account = new JTextArea();
-        Text_Account.setBounds(100,70,350,20);
-        Text_Account.setEditable(false);
-        add(Text_Account);
+        // 2. 테이블 모델 생성 (컬럼: 계좌 종류, 계좌 번호, 잔액)
+        String[] header = {"계좌 종류", "계좌 번호", "잔액"};
+        Model_Account = new DefaultTableModel(header, 0);
 
-        Label_balance = new JLabel("잔액");
-        Label_balance.setBounds(0,120,100,20);
-        Label_balance.setHorizontalAlignment(JLabel.LEFT);
-        add(Label_balance);
+        // 3. JTable 생성 및 설정
+        Table_Account = new JTable(Model_Account);
+        // 테이블 내용 수정 불가 설정 등은 필요시 추가
 
-        Text_balance = new JTextArea();
-        Text_balance.setBounds(100,120,350,20);
-        Text_balance.setEditable(false);
-        add(Text_balance);
+        // 4. 스크롤 페인에 테이블 담기
+        Scroll_Account = new JScrollPane(Table_Account);
+        Scroll_Account.setBounds(20, 50, 420, 180); // 화면 중앙 배치
+        add(Scroll_Account);
 
+        // 5. 닫기 버튼
         Btn_Close = new JButton("닫기");
-        Btn_Close.setBounds(250,250,70,20);
+        Btn_Close.setBounds(200, 250, 70, 20);
         Btn_Close.addActionListener(this);
         add(Btn_Close);
     }
 
-    //*******************************************************************
-    // Name : actionPerformed
-    // Type : Listner
-    // Description :  취소 버튼의 동작을 구현
-    //                취소 동작 후 메인 화면으로 변경되도록 구현
-    //*******************************************************************
     public void actionPerformed(ActionEvent e)
     {
         if (e.getSource() == Btn_Close)
@@ -93,7 +83,7 @@ public class PanViewAccount extends JPanel implements ActionListener
     //*******************************************************************
     // Name : GetBalance()
     // Type : Method
-    // Description :  ATMMain의 Send 기능을 호출하여 서버에 계좌조회 요청 메시지를 전달 하는 기능.
+    // Description :  서버로부터 계좌 리스트를 받아 테이블에 출력
     //*******************************************************************
     public void GetBalance()
     {
@@ -108,15 +98,37 @@ public class PanViewAccount extends JPanel implements ActionListener
                     ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(attachment.array());
                     ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
                     CommandDTO command = (CommandDTO) objectInputStream.readObject();
+
                     SwingUtilities.invokeLater(() -> {
-                        String accountNumber = BankUtils.displayAccountNo(command.getUserAccountNo());
-                        Text_Account.setText(accountNumber);
-                        String balance = BankUtils.displayBalance(command.getBalance());
-                        Text_balance.setText(balance + "원");
+                        // 1. 기존 테이블 데이터 초기화
+                        Model_Account.setRowCount(0);
+
+                        // 2. 리스트 가져오기
+                        List<String> list = command.getAccountList();
+
+                        // 3. 데이터 파싱 및 행 추가
+                        if (list != null && !list.isEmpty()) {
+                            for (String info : list) {
+                                // "종류/번호/잔액" 형식 split
+                                String[] parts = info.split("/");
+                                if (parts.length >= 3) {
+                                    String type = parts[0];
+                                    // 계좌번호 포맷팅 (BankUtils 사용)
+                                    String accountNo = BankUtils.displayAccountNo(parts[1]);
+                                    // 잔액 포맷팅
+                                    long balanceVal = Long.parseLong(parts[2]);
+                                    String balanceStr = BankUtils.displayBalance(balanceVal) + "원";
+
+                                    // 테이블에 행 추가
+                                    Model_Account.addRow(new Object[]{type, accountNo, balanceStr});
+                                }
+                            }
+                        } else {
+                            // 계좌가 없을 경우 처리 (선택)
+                            // Model_Account.addRow(new Object[]{"없음", "-", "0원"});
+                        }
                     });
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (ClassNotFoundException e) {
+                } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
                 }
             }
@@ -125,5 +137,4 @@ public class PanViewAccount extends JPanel implements ActionListener
             }
         });
     }
-
 }
