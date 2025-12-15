@@ -114,8 +114,6 @@ public class PanTransfer extends JPanel implements ActionListener
         if (e.getSource() == Btn_Transfer)
         {
             Transfer();
-            this.setVisible(false);
-            MainFrame.display("Main");
         }
         if (e.getSource() == Btn_Close)
         {
@@ -133,7 +131,13 @@ public class PanTransfer extends JPanel implements ActionListener
     public void Transfer()
     {
         String receiveAccountNo = Text_RecvAccount.getText();
-        long amount = Long.parseLong(Text_Amount.getText());
+        long amount;
+        try {
+            amount = Long.parseLong(Text_Amount.getText());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, "이체 금액은 숫자만 입력해주세요.", "입력 오류", JOptionPane.ERROR_MESSAGE);
+            return; // Exit the method if input is invalid
+        }
         String password = Text_Password.getText();
 
         CommandDTO commandDTO = new CommandDTO(RequestType.TRANSFER, password, MainFrame.userId, receiveAccountNo, amount);
@@ -167,10 +171,12 @@ public class PanTransfer extends JPanel implements ActionListener
                             contentText = "비밀번호가 일치하지 않습니다.";
                             JOptionPane.showMessageDialog(null, contentText, "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE);
                         }
-                        else
+                        else // SUCCESS case
                         {
                             contentText = "이체 되었습니다.";
                             JOptionPane.showMessageDialog(null, contentText, "SUCCESS_MESSAGE", JOptionPane.PLAIN_MESSAGE);
+                            setVisible(false);
+                            MainFrame.display("Main");
                         }
                     });
                 }
@@ -185,6 +191,9 @@ public class PanTransfer extends JPanel implements ActionListener
             }
             @Override
             public void failed(Throwable exc, ByteBuffer attachment) {
+                SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(null, "서버 통신 실패: " + exc.getMessage(), "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE)
+                );
             }
         });
     }
