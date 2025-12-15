@@ -93,8 +93,6 @@ public class PanDeposite extends JPanel implements ActionListener
         if (e.getSource() == Btn_Deposite)
         {
             deposit();
-            this.setVisible(false);
-            MainFrame.display("Main");
         }
 
         if (e.getSource() == Btn_Close)
@@ -112,7 +110,14 @@ public class PanDeposite extends JPanel implements ActionListener
     //                ATMMain의 Send 기능을 호출하여 서버에 입금 요청 메시지를 전달 하는 기능.
     //*******************************************************************
     public void deposit() {
-        long amount = Long.parseLong(Text_Amount.getText());
+        long amount;
+        try {
+            amount = Long.parseLong(Text_Amount.getText());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, "금액은 숫자만 입력해주세요.", "입력 오류", JOptionPane.ERROR_MESSAGE);
+            return; // Exit the method if input is invalid
+        }
+
         CommandDTO commandDTO = new CommandDTO(RequestType.DEPOSIT, ATMMain.userId, amount);
         MainFrame.send(commandDTO, new CompletionHandler<Integer, ByteBuffer>() {
             @Override
@@ -127,16 +132,17 @@ public class PanDeposite extends JPanel implements ActionListener
                     CommandDTO command = (CommandDTO) objectInputStream.readObject();
                     SwingUtilities.invokeLater(() ->
                     {
-
                         String contentText = null;
                         if (command.getResponseType() == ResponseType.SUCCESS)
                         {
                             contentText = "입금 되었습니다.";
                             JOptionPane.showMessageDialog(null, contentText, "SUCCESS_MESSAGE", JOptionPane.PLAIN_MESSAGE);
+                            // Only transition to Main on success
+                            setVisible(false);
+                            MainFrame.display("Main");
                         }
                         else
                         {
-
                             contentText = "입금 오류! 관리자에게 문의하세요.";
                             JOptionPane.showMessageDialog(null, contentText, "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE);
                         }
@@ -152,6 +158,9 @@ public class PanDeposite extends JPanel implements ActionListener
             @Override
             public void failed(Throwable exc, ByteBuffer attachment)
             {
+                SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(null, "서버 통신 실패: " + exc.getMessage(), "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE)
+                );
             }
         });
 
