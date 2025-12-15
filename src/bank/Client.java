@@ -148,17 +148,35 @@ public class Client {
     }
 
     private synchronized void transfer(CommandDTO commandDTO) {
-        // (기존 코드 유지 - 생략 가능하지만 컴파일을 위해 필요한 부분만 포함하거나 기존 코드를 그대로 두세요)
-        // 편의상 기존 코드 로직을 유지합니다.
+        // 1. 보내는 사람 찾기
         CustomerVO sender = this.customerList.stream()
                 .filter(c -> Objects.equals(c.getId(), commandDTO.getId()))
                 .findFirst().orElse(null);
-        // ... (이체 로직 생략, 기존과 동일) ...
-        // 만약 이체 로직이 필요하면 이전에 보내드린 코드를 그대로 사용하세요.
-        // 여기서는 view 메소드만 수정되었습니다.
+
+        if (sender == null) {
+            commandDTO.setResponseType(ResponseType.FAILURE);
+            send(commandDTO);
+            return;
+        }
+
+        // 2. 보내는 사람 비밀번호 인증
+        if (!sender.getPassword().equals(commandDTO.getPassword())) {
+            commandDTO.setResponseType(ResponseType.WRONG_PASSWORD);
+            send(commandDTO);
+            return;
+        }
+
+        // 3. 보내는 사람 계좌 찾기 (명시적으로 첫 번째 계좌 사용)
+        if (sender.getAccountList() == null || sender.getAccountList().isEmpty()) {
+            commandDTO.setResponseType(ResponseType.FAILURE); // 이체할 계좌가 없음
+            send(commandDTO);
+            return;
+        }
+        Account senderAccount = sender.getAccountList().get(0);
+
+        // 4. 받는 사람 계좌 찾기
         CustomerVO receiver = null;
         Account receiverAccount = null;
-
         for (CustomerVO c : customerList) {
             Account acc = c.findAccount(commandDTO.getReceivedAccountNo());
             if (acc != null) {
@@ -167,31 +185,20 @@ public class Client {
                 break;
             }
         }
-        // ... (중략) ...
-        // 실제 구현시에는 이전에 보내드린 transfer, deposit, withdraw 메소드 내용을 그대로 두시면 됩니다.
-        // 컴파일 에러 방지를 위해 아래에 간략히 남겨둡니다.
-        if (sender != null) {
-            // getTargetAccount 메소드가 필요합니다.
-            Account senderAccount = null;
-            if(sender.getAccountList() != null && !sender.getAccountList().isEmpty())
-                senderAccount = sender.getAccountList().get(0); // 단순화
 
-            if (receiverAccount == null) {
-                commandDTO.setResponseType(ResponseType.WRONG_ACCOUNT_NO);
-            } else if (!sender.getPassword().equals(commandDTO.getPassword())) {
-                commandDTO.setResponseType(ResponseType.WRONG_PASSWORD);
-            } else {
-                // 단순화된 로직 (실제로는 잔액 체크 등 필요)
-                boolean success = senderAccount.withdraw(commandDTO.getAmount());
-                if(success){
-                    receiverAccount.deposit(commandDTO.getAmount());
-                    commandDTO.setResponseType(ResponseType.SUCCESS);
-                } else {
-                    commandDTO.setResponseType(ResponseType.INSUFFICIENT);
-                }
-            }
+        if (receiverAccount == null) {
+            commandDTO.setResponseType(ResponseType.WRONG_ACCOUNT_NO);
+            send(commandDTO);
+            return;
+        }
+
+        // 5. 이체 실행
+        if (senderAccount.withdraw(commandDTO.getAmount())) {
+            receiverAccount.deposit(commandDTO.getAmount());
+            commandDTO.setResponseType(ResponseType.SUCCESS);
+            handler.displayInfo(sender.getName() + "님이 " + receiver.getName() + "님에게 " + commandDTO.getAmount() + "원 이체 완료.");
         } else {
-            commandDTO.setResponseType(ResponseType.FAILURE);
+            commandDTO.setResponseType(ResponseType.INSUFFICIENT);
         }
         send(commandDTO);
     }
@@ -201,9 +208,14 @@ public class Client {
         CustomerVO user = this.customerList.stream()
                 .filter(customerVO -> Objects.equals(customerVO.getId(), commandDTO.getId()))
                 .findFirst().orElse(null);
+
         if (user != null && user.getAccountList() != null && !user.getAccountList().isEmpty()) {
-            user.getAccountList().get(0).deposit(commandDTO.getAmount());
+            Account targetAccount = user.getAccountList().get(0);
+            targetAccount.deposit(commandDTO.getAmount());
             commandDTO.setResponseType(ResponseType.SUCCESS);
+            handler.displayInfo(user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에 " + commandDTO.getAmount() + "원 입금 완료.");
+        } else {
+            commandDTO.setResponseType(ResponseType.FAILURE); // 사용자 또는 계좌가 없으면 실패 응답 전송
         }
         send(commandDTO);
     }
@@ -212,11 +224,19 @@ public class Client {
         CustomerVO user = this.customerList.stream()
                 .filter(customerVO -> Objects.equals(customerVO.getId(), commandDTO.getId()))
                 .findFirst().orElse(null);
+
+        // 적절한 구현을 위해서는 클라이언트가 특정 계좌 번호를 전송해야 합니다.
+        // 현재로서는 첫 번째 계좌가 대상이라는 가정하에 진행합니다.
         if (user != null && user.getAccountList() != null && !user.getAccountList().isEmpty()) {
-            if(user.getAccountList().get(0).withdraw(commandDTO.getAmount()))
+            Account targetAccount = user.getAccountList().get(0);
+            if (targetAccount.withdraw(commandDTO.getAmount())) {
                 commandDTO.setResponseType(ResponseType.SUCCESS);
-            else
+                handler.displayInfo(user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에서 " + commandDTO.getAmount() + "원 출금 완료.");
+            } else {
                 commandDTO.setResponseType(ResponseType.INSUFFICIENT);
+            }
+        } else {
+            commandDTO.setResponseType(ResponseType.FAILURE); // 사용자 또는 계좌가 없으면 실패 응답 전송
         }
         send(commandDTO);
     }

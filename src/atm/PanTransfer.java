@@ -136,7 +136,7 @@ public class PanTransfer extends JPanel implements ActionListener
             amount = Long.parseLong(Text_Amount.getText());
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(null, "이체 금액은 숫자만 입력해주세요.", "입력 오류", JOptionPane.ERROR_MESSAGE);
-            return; // Exit the method if input is invalid
+            return; // 입력값이 유효하지 않으면 메소드 종료
         }
         String password = Text_Password.getText();
 
@@ -175,8 +175,7 @@ public class PanTransfer extends JPanel implements ActionListener
                         {
                             contentText = "이체 되었습니다.";
                             JOptionPane.showMessageDialog(null, contentText, "SUCCESS_MESSAGE", JOptionPane.PLAIN_MESSAGE);
-                            setVisible(false);
-                            MainFrame.display("Main");
+                            // 성공 시에만 메인으로 화면 전환
                         }
                     });
                 }

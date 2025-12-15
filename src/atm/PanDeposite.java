@@ -115,7 +115,7 @@ public class PanDeposite extends JPanel implements ActionListener
             amount = Long.parseLong(Text_Amount.getText());
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(null, "금액은 숫자만 입력해주세요.", "입력 오류", JOptionPane.ERROR_MESSAGE);
-            return; // Exit the method if input is invalid
+            return; // 입력값이 유효하지 않으면 메소드 종료
         }
 
         CommandDTO commandDTO = new CommandDTO(RequestType.DEPOSIT, ATMMain.userId, amount);
@@ -137,7 +137,7 @@ public class PanDeposite extends JPanel implements ActionListener
                         {
                             contentText = "입금 되었습니다.";
                             JOptionPane.showMessageDialog(null, contentText, "SUCCESS_MESSAGE", JOptionPane.PLAIN_MESSAGE);
-                            // Only transition to Main on success
+                            // 성공 시에만 메인으로 화면 전환
                             setVisible(false);
                             MainFrame.display("Main");
                         }
