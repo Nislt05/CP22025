@@ -203,14 +203,13 @@ public class Client {
         send(commandDTO);
     }
 
-    // deposit, withdraw 메소드는 기존과 동일하므로 생략하지 않고 그대로 두어야 합니다.
     private synchronized void deposit(CommandDTO commandDTO) {
         CustomerVO user = this.customerList.stream()
                 .filter(customerVO -> Objects.equals(customerVO.getId(), commandDTO.getId()))
                 .findFirst().orElse(null);
 
         if (user != null && user.getAccountList() != null && !user.getAccountList().isEmpty()) {
-            // (수정됨) 클라이언트가 선택한 계좌번호로 입금 대상 찾기
+            // 클라이언트가 선택한 계좌번호로 입금 대상 찾기
             String targetAccountNo = commandDTO.getReceivedAccountNo();
             Account targetAccount = user.findAccount(targetAccountNo);
 
@@ -227,23 +226,36 @@ public class Client {
         send(commandDTO);
     }
 
+    // [수정됨] 출금 로직 개선: 당좌계좌 자동이체 발생 시 상세 메시지 출력
     private synchronized void withdraw(CommandDTO commandDTO) {
         CustomerVO user = this.customerList.stream()
                 .filter(customerVO -> Objects.equals(customerVO.getId(), commandDTO.getId()))
                 .findFirst().orElse(null);
 
-        // 적절한 구현을 위해서는 클라이언트가 특정 계좌 번호를 전송해야 합니다.
-        // 현재로서는 첫 번째 계좌가 대상이라는 가정하에 진행합니다.
         if (user != null && user.getAccountList() != null && !user.getAccountList().isEmpty()) {
-            // (수정됨) 클라이언트가 선택한 계좌번호로 출금 대상 찾기
+            // 클라이언트가 선택한 계좌번호로 출금 대상 찾기
             String targetAccountNo = commandDTO.getReceivedAccountNo();
             Account targetAccount = user.findAccount(targetAccountNo);
 
             if (targetAccount != null) {
-                // (수정됨) Account의 withdraw 실행 (자동이체 로직은 CheckingAccount 내부에 있음)
+                // 출금 실행
                 if (targetAccount.withdraw(commandDTO.getAmount())) {
                     commandDTO.setResponseType(ResponseType.SUCCESS);
-                    handler.displayInfo(user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에서 " + commandDTO.getAmount() + "원 출금 완료.");
+
+                    // 기본 메시지 생성
+                    String logMsg = user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에서 " + commandDTO.getAmount() + "원 출금 완료.";
+
+                    // (추가됨) 만약 당좌계좌(CheckingAccount)라면, 자동이체 발생 여부를 확인하여 메시지에 추가
+                    if (targetAccount instanceof CheckingAccount) {
+                        CheckingAccount ca = (CheckingAccount) targetAccount;
+                        long autoTransferred = ca.getLastAutoTransferAmount();
+
+                        if (autoTransferred > 0) {
+                            logMsg += " (잔액 부족으로 저축계좌에서 " + autoTransferred + "원 자동이체됨)";
+                        }
+                    }
+
+                    handler.displayInfo(logMsg);
                 } else {
                     commandDTO.setResponseType(ResponseType.INSUFFICIENT); // 잔액 부족 (자동이체 실패 포함)
                 }
