@@ -66,7 +66,7 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
         setResizable(false);
 
         try {
-            Image Img_CNULogo = ImageIO.read(new File("C:\\Users\\lee26\\OneDrive\\Desktop\\BP\\src\\cnu.jpg"));
+            Image Img_CNULogo = ImageIO.read(new File("/Users/elsa/IdeaProjects/bank/src/cnu.jpg"));
             IconCNU = new ImageIcon(Img_CNULogo.getScaledInstance(200, 200, Image.SCALE_SMOOTH));
             Label_Image = new JLabel();
             Label_Image.setIcon(IconCNU);

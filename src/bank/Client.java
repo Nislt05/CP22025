@@ -210,10 +210,17 @@ public class Client {
                 .findFirst().orElse(null);
 
         if (user != null && user.getAccountList() != null && !user.getAccountList().isEmpty()) {
-            Account targetAccount = user.getAccountList().get(0);
-            targetAccount.deposit(commandDTO.getAmount());
-            commandDTO.setResponseType(ResponseType.SUCCESS);
-            handler.displayInfo(user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에 " + commandDTO.getAmount() + "원 입금 완료.");
+            // (수정됨) 클라이언트가 선택한 계좌번호로 입금 대상 찾기
+            String targetAccountNo = commandDTO.getReceivedAccountNo();
+            Account targetAccount = user.findAccount(targetAccountNo);
+
+            if (targetAccount != null) {
+                targetAccount.deposit(commandDTO.getAmount());
+                commandDTO.setResponseType(ResponseType.SUCCESS);
+                handler.displayInfo(user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에 " + commandDTO.getAmount() + "원 입금 완료.");
+            } else {
+                commandDTO.setResponseType(ResponseType.FAILURE); // 해당 계좌번호를 찾을 수 없음
+            }
         } else {
             commandDTO.setResponseType(ResponseType.FAILURE); // 사용자 또는 계좌가 없으면 실패 응답 전송
         }
@@ -228,12 +235,20 @@ public class Client {
         // 적절한 구현을 위해서는 클라이언트가 특정 계좌 번호를 전송해야 합니다.
         // 현재로서는 첫 번째 계좌가 대상이라는 가정하에 진행합니다.
         if (user != null && user.getAccountList() != null && !user.getAccountList().isEmpty()) {
-            Account targetAccount = user.getAccountList().get(0);
-            if (targetAccount.withdraw(commandDTO.getAmount())) {
-                commandDTO.setResponseType(ResponseType.SUCCESS);
-                handler.displayInfo(user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에서 " + commandDTO.getAmount() + "원 출금 완료.");
+            // (수정됨) 클라이언트가 선택한 계좌번호로 출금 대상 찾기
+            String targetAccountNo = commandDTO.getReceivedAccountNo();
+            Account targetAccount = user.findAccount(targetAccountNo);
+
+            if (targetAccount != null) {
+                // (수정됨) Account의 withdraw 실행 (자동이체 로직은 CheckingAccount 내부에 있음)
+                if (targetAccount.withdraw(commandDTO.getAmount())) {
+                    commandDTO.setResponseType(ResponseType.SUCCESS);
+                    handler.displayInfo(user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에서 " + commandDTO.getAmount() + "원 출금 완료.");
+                } else {
+                    commandDTO.setResponseType(ResponseType.INSUFFICIENT); // 잔액 부족 (자동이체 실패 포함)
+                }
             } else {
-                commandDTO.setResponseType(ResponseType.INSUFFICIENT);
+                commandDTO.setResponseType(ResponseType.FAILURE); // 해당 계좌번호 찾을 수 없음
             }
         } else {
             commandDTO.setResponseType(ResponseType.FAILURE); // 사용자 또는 계좌가 없으면 실패 응답 전송

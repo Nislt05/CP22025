@@ -29,7 +29,7 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
     private JButton Btn_Reset;
     private JTextArea TextArea_Log;
     private JScrollPane sp;
-    private JButton Btn_Manager; //관리자 버튼 추가
+    private JButton Btn_Manager;
 
     private ServerSocket serverSocket;
     private List<CustomerVO> customerList;
@@ -63,17 +63,39 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
     // Description :  Server 시작 시 저장된 계좌 정보가 없으면 Default 계좌를 생성하는 기능
     //*******************************************************************
     private static List<CustomerVO> GetDefaultCustomers() {
-        List<CustomerVO> customerList = new Vector<>();
-        // [수정] Account는 추상 클래스이므로 CheckingAccount(당좌)로 생성해야 함
-        customerList.add(new CustomerVO("202400001", "광수", "202400001",
-                new CheckingAccount("광수", "202400001", 100_000_000, Date.valueOf(LocalDate.now()))));
-        customerList.add(new CustomerVO("202400002", "영철", "202400002",
-                new CheckingAccount("영철", "202400002", 10_000_000, Date.valueOf(LocalDate.now()))));
-        customerList.add(new CustomerVO("202400003", "영숙", "202400003",
-                new CheckingAccount("영숙", "202400003", 5_000_000, Date.valueOf(LocalDate.now()))));
-        customerList.add(new CustomerVO("202400004", "옥순", "202400004",
-                new CheckingAccount("옥순", "202400004", 1_000_000, Date.valueOf(LocalDate.now()))));
-        return customerList;
+        List<CustomerVO> list = new Vector<>();
+        Date now = Date.valueOf(LocalDate.now());
+
+        // 1. 광수 (자동이체 테스트용)
+        // - 당좌계좌(CheckingAccount): 잔액 100,000원
+        // - 저축계좌(SavingsAccount): 잔액 1,000,000원
+        CheckingAccount chkAccount = new CheckingAccount("광수", "202400001-1", 100_000, now);
+        SavingsAccount savAccount = new SavingsAccount("광수", "202400001-2", 1_000_000, now, 2.0);
+
+        // (수정됨) 한도 설정 제거함. 단순히 두 계좌를 연결만 수행
+        chkAccount.setLinkedSavings(savAccount);
+
+        CustomerVO user1 = new CustomerVO("202400001", "광수", "202400001");
+        user1.addAccount(chkAccount);
+        user1.addAccount(savAccount);
+        list.add(user1);
+
+        // 2. 영철 (일반 계좌)
+        CustomerVO user2 = new CustomerVO("202400002", "영철", "202400002");
+        user2.addAccount(new CheckingAccount("영철", "202400002", 10_000_000, now));
+        list.add(user2);
+
+        // 3. 영숙
+        CustomerVO user3 = new CustomerVO("202400003", "영숙", "202400003");
+        user3.addAccount(new CheckingAccount("영숙", "202400003", 5_000_000, now));
+        list.add(user3);
+
+        // 4. 옥순
+        CustomerVO user4 = new CustomerVO("202400004", "옥순", "202400004");
+        user4.addAccount(new CheckingAccount("옥순", "202400004", 1_000_000, now));
+        list.add(user4);
+
+        return list;
     }
 
     //*******************************************************************
@@ -153,7 +175,6 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
         Btn_Manager = new JButton("관리자 모드");
         Btn_Manager.addActionListener(this);
         bottomPanel.add(Btn_Manager);
-        //관리자 모드를 위해 버튼을 추가함
 
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
@@ -177,7 +198,7 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
             }
         } else if (e.getSource() == Btn_Reset) {
             TextArea_Log.setText(null);
-        }//[추가된 부분]
+        }
         else if (e.getSource() == Btn_Manager) {
             // [추가 구현] 관리자 인증 절차 (authenticateUser)
             JPanel panel = new JPanel(new GridLayout(2, 2));
@@ -234,7 +255,7 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
                     SwingUtilities.invokeLater(() -> Label_UserCount_2.setText(String.valueOf(clientList.size())));
                 }
             } catch (IOException e) {
-                if(isRunning) e.printStackTrace(); // 실행 중일 때만 에러 출력
+                if(isRunning) e.printStackTrace();
                 stopServer();
             }
         }).start();
@@ -324,7 +345,6 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
     // Description : 특정 고객에게 새로운 계좌 추가 (중복 계좌번호 체크 포함)
     //*******************************************************************
     public boolean addAccount(String customerId, String accountNo, AccountType type, long balance) {
-        // 1. 전체 고객을 돌면서 계좌번호 중복 체크
         for (CustomerVO c : customerList) {
             if (c.findAccount(accountNo) != null) {
                 addMsg("오류: 이미 존재하는 계좌번호입니다 (" + accountNo + ")");
@@ -332,19 +352,14 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
             }
         }
 
-        // 2. 해당 고객을 찾아 계좌 추가
         for (CustomerVO c : customerList) {
             if (c.getId().equals(customerId)) {
-
-                // [수정됨] Account는 추상클래스이므로 new Account 불가능.
-                // 타입에 따라 CheckingAccount 또는 SavingsAccount 생성
                 Account newAccount;
                 Date now = Date.valueOf(LocalDate.now());
 
                 if (type == AccountType.CHECKING) {
                     newAccount = new CheckingAccount(c.getName(), accountNo, balance, now);
                 } else {
-                    // 저축 예금의 경우 이자율을 기본 2.0으로 설정
                     newAccount = new SavingsAccount(c.getName(), accountNo, balance, now, 2.0);
                 }
 
@@ -395,7 +410,7 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
     // [추가 구현] 설명서 요구사항: 통계 및 전체 출력 기능
     // ------------------------------------------------------------------
 
-    // 1. 모든 고객 정보 출력 (printCustomerList) [cite: 47]
+    // 1. 모든 고객 정보 출력
     public void printCustomerList() {
         addMsg("========================================");
         addMsg("           [ 모든 고객 목록 출력 ]");
@@ -412,7 +427,7 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
         addMsg("========================================");
     }
 
-    // 2. 모든 계좌 정보 출력 (printAccountList) [cite: 47]
+    // 2. 모든 계좌 정보 출력
     public void printAccountList() {
         addMsg("========================================");
         addMsg("           [ 모든 계좌 목록 출력 ]");
@@ -435,13 +450,13 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
         addMsg("========================================");
     }
 
-    // 3. 모든 고객의 수 출력 (getNumberOfCustomers) [cite: 48]
+    // 3. 모든 고객의 수 출력
     public void getNumberOfCustomers() {
         int count = customerList.size();
         addMsg("[통계] 현재 등록된 총 고객 수: " + count + "명");
     }
 
-    // 4. 총 보유 잔고 출력 (getTotalBankBalance) [cite: 48]
+    // 4. 총 보유 잔고 출력
     public void getTotalBankBalance() {
         long totalBalance = 0;
 
@@ -462,19 +477,16 @@ public class ServerMain extends JFrame implements ActionListener, ClientHandler 
 
     // 1. 고객 인증 (ATM 로그인용)
     public CustomerVO authenticateUser(String id, String password) {
-        // 고객 목록에서 일치하는 사용자 찾기
         for (CustomerVO c : customerList) {
             if (c.getId().equals(id) && c.getPassword().equals(password)) {
-                return c; // 인증 성공 시 고객 객체 반환
+                return c;
             }
         }
-        return null; // 인증 실패
+        return null;
     }
 
     // 2. 관리자 인증 (관리자 모드 접속용)
     public boolean authenticateManager(String id, String password) {
-        // 실제로는 관리자 목록(ManagerList)이 있어야 하지만,
-        // 현재 구현상 'admin' 계정 하나로 하드코딩하여 처리합니다.
         return "admin".equals(id) && "1234".equals(password);
     }
 

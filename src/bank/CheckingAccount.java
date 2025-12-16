@@ -38,11 +38,9 @@ public class CheckingAccount extends Account {
             // 잔액 부족 시 연결된 저축계좌 확인
             if (linkedSavings != null) {
                 long needed = amount - balance;
-                // 저축계좌의 이체 한도 확인
-                long transferLimit = linkedSavings.getMaxTransferAmountToChecking();
 
-                // 한도 내이고, 저축계좌에 돈이 충분한지 확인
-                if (needed <= transferLimit && linkedSavings.getBalance() >= needed) {
+                // (수정됨) 한도 체크 로직 삭제. 저축계좌에 잔액이 충분한지만 확인
+                if (linkedSavings.getBalance() >= needed) {
                     // 자동 이체 수행
                     linkedSavings.withdraw(needed);
                     balance += needed; // 부족한 만큼 채움
@@ -51,7 +49,7 @@ public class CheckingAccount extends Account {
                     return true;
                 }
             }
-            return false; // 연결된 계좌 없거나 잔액/한도 부족
+            return false; // 연결된 계좌 없거나 잔액 부족
         }
     }
 

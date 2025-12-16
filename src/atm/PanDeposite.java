@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.CompletionHandler;
+import java.util.List; // (추가됨)
 
 
 //*******************************************************************
@@ -22,6 +23,10 @@ import java.nio.channels.CompletionHandler;
 public class PanDeposite extends JPanel implements ActionListener
 {
     private JLabel Label_Title;
+
+    private JLabel Label_Account; // (추가됨) 계좌 선택 라벨
+    private JComboBox<String> Combo_Account; // (추가됨) 계좌 선택 콤보박스
+    private JButton Btn_LoadAccount; // (추가됨) 계좌 불러오기 버튼
 
     private JLabel Label_Amount;
     private JTextField Text_Amount;
@@ -59,6 +64,21 @@ public class PanDeposite extends JPanel implements ActionListener
         Label_Title.setBounds(0,0,480,40);
         Label_Title.setHorizontalAlignment(JLabel.CENTER);
         add(Label_Title);
+
+        // (추가됨) 계좌 선택 GUI 구성
+        Label_Account = new JLabel("입금 계좌");
+        Label_Account.setBounds(0, 80, 100, 20);
+        Label_Account.setHorizontalAlignment(JLabel.CENTER);
+        add(Label_Account);
+
+        Combo_Account = new JComboBox<>();
+        Combo_Account.setBounds(100, 80, 240, 20);
+        add(Combo_Account);
+
+        Btn_LoadAccount = new JButton("조회");
+        Btn_LoadAccount.setBounds(350, 80, 70, 20);
+        Btn_LoadAccount.addActionListener(this);
+        add(Btn_LoadAccount);
 
         Label_Amount = new JLabel("금액");
         Label_Amount.setBounds(0,120,100,20);
@@ -100,8 +120,50 @@ public class PanDeposite extends JPanel implements ActionListener
             this.setVisible(false);
             MainFrame.display("Main");
         }
+        if (e.getSource() == Btn_LoadAccount) // (추가됨) 계좌 불러오기 버튼 동작
+        {
+            loadAccountList();
+        }
     }
 
+    // (추가됨) 서버로부터 계좌 목록을 받아와 콤보박스에 채우는 기능
+    private void loadAccountList() {
+        MainFrame.send(new CommandDTO(RequestType.VIEW), new CompletionHandler<Integer, ByteBuffer>() {
+            @Override
+            public void completed(Integer result, ByteBuffer attachment) {
+                if (result == -1) return;
+                attachment.flip();
+                try {
+                    ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(attachment.array());
+                    ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
+                    CommandDTO command = (CommandDTO) objectInputStream.readObject();
+
+                    SwingUtilities.invokeLater(() -> {
+                        if (command.getResponseType() == ResponseType.SUCCESS) {
+                            Combo_Account.removeAllItems();
+                            List<String> list = command.getAccountList();
+                            if (list != null) {
+                                for (String info : list) {
+                                    // "타입/번호/잔액" 형식이므로 번호만 추출 (인덱스 1)
+                                    String[] parts = info.split("/");
+                                    if (parts.length >= 2) {
+                                        Combo_Account.addItem(parts[1]); // 계좌번호 추가
+                                    }
+                                }
+                            }
+                            JOptionPane.showMessageDialog(null, "계좌 목록을 불러왔습니다.", "알림", JOptionPane.PLAIN_MESSAGE);
+                        } else {
+                            JOptionPane.showMessageDialog(null, "계좌 목록 불러오기 실패", "ERROR", JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            @Override
+            public void failed(Throwable exc, ByteBuffer attachment) {}
+        });
+    }
 
     //*******************************************************************
     // Name : deposit()
@@ -111,6 +173,13 @@ public class PanDeposite extends JPanel implements ActionListener
     //*******************************************************************
     public void deposit() {
         long amount;
+        String selectedAccount = (String) Combo_Account.getSelectedItem(); // (추가됨) 선택된 계좌번호 가져오기
+
+        if (selectedAccount == null || selectedAccount.isEmpty()) { // (추가됨) 선택된 계좌가 없으면 경고
+            JOptionPane.showMessageDialog(null, "입금할 계좌를 먼저 조회하고 선택해주세요.", "입력 오류", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         try {
             amount = Long.parseLong(Text_Amount.getText());
         } catch (NumberFormatException e) {
@@ -119,6 +188,8 @@ public class PanDeposite extends JPanel implements ActionListener
         }
 
         CommandDTO commandDTO = new CommandDTO(RequestType.DEPOSIT, ATMMain.userId, amount);
+        commandDTO.setReceivedAccountNo(selectedAccount); // (추가됨) 선택한 계좌번호를 DTO에 설정 (수신계좌 필드 재사용)
+
         MainFrame.send(commandDTO, new CompletionHandler<Integer, ByteBuffer>() {
             @Override
             public void completed(Integer result, ByteBuffer attachment) {
@@ -159,7 +230,7 @@ public class PanDeposite extends JPanel implements ActionListener
             public void failed(Throwable exc, ByteBuffer attachment)
             {
                 SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(null, "서버 통신 실패: " + exc.getMessage(), "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE)
+                        JOptionPane.showMessageDialog(null, "서버 통신 실패: " + exc.getMessage(), "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE)
                 );
             }
         });
