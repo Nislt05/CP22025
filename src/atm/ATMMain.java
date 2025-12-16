@@ -66,7 +66,7 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
         setResizable(false);
 
         try {
-            Image Img_CNULogo = ImageIO.read(new File("/Users/elsa/IdeaProjects/bank/src/cnu.jpg"));
+            Image Img_CNULogo = ImageIO.read(new File("src/cnu.jpg"));
             IconCNU = new ImageIcon(Img_CNULogo.getScaledInstance(200, 200, Image.SCALE_SMOOTH));
             Label_Image = new JLabel();
             Label_Image.setIcon(IconCNU);
@@ -212,8 +212,11 @@ public class ATMMain extends JFrame implements ActionListener, BankServiceHandle
             inputStream = socket.getInputStream();
             System.out.println("뱅크 서버 접속");
         } catch (IOException e) {
-            e.printStackTrace();
-            disconnectServer();
+            JOptionPane.showMessageDialog(null,
+                    "서버에 연결할 수 없습니다.\n서버 프로그램이 실행 중인지 확인해주세요.",
+                    "연결 오류",
+                    JOptionPane.ERROR_MESSAGE);
+            System.exit(0);
         }
     }
 
