@@ -4,7 +4,7 @@ import common.CommandDTO;
 import common.RequestType;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel; // [추가] 테이블 모델
+import javax.swing.table.DefaultTableModel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.ByteArrayInputStream;
@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.CompletionHandler;
-import java.util.List; // [추가] List
+import java.util.List;
 
 //*******************************************************************
 // Name : PanViewAccount
@@ -53,11 +53,22 @@ public class PanViewAccount extends JPanel implements ActionListener
 
         // 2. 테이블 모델 생성 (컬럼: 계좌 종류, 계좌 번호, 잔액)
         String[] header = {"계좌 종류", "계좌 번호", "잔액"};
-        Model_Account = new DefaultTableModel(header, 0);
+
+        // [수정됨] 익명 클래스를 사용하여 셀 수정 불가능하도록 오버라이드
+        Model_Account = new DefaultTableModel(header, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // 모든 셀에 대해 수정 불가 반환
+            }
+        };
 
         // 3. JTable 생성 및 설정
         Table_Account = new JTable(Model_Account);
-        // 테이블 내용 수정 불가 설정 등은 필요시 추가
+
+        // [추가됨] 테이블 헤더가 마우스 드래그로 이동되지 않도록 설정 (선택사항)
+        Table_Account.getTableHeader().setReorderingAllowed(false);
+        // [추가됨] 컬럼 크기 조절 불가 설정 (선택사항)
+        Table_Account.getTableHeader().setResizingAllowed(false);
 
         // 4. 스크롤 페인에 테이블 담기
         Scroll_Account = new JScrollPane(Table_Account);
