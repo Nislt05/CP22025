@@ -215,9 +215,12 @@ public class PanWithdrawal extends JPanel implements ActionListener
                         }
                         else if (command.getResponseType() == ResponseType.INSUFFICIENT)
                         {
-
-                            contentText = "잔액이 부족합니다";
-                            JOptionPane.showMessageDialog(null, contentText, "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE);
+                            // [수정됨] 서버에서 보낸 에러 메시지(예외 내용)를 확인하여 출력
+                            String msg = command.getErrorMessage();
+                            if (msg == null || msg.isEmpty()) {
+                                msg = "잔액이 부족합니다.";
+                            }
+                            JOptionPane.showMessageDialog(null, msg, "ERROR_MESSAGE", JOptionPane.ERROR_MESSAGE);
                         }
                         else
                         {

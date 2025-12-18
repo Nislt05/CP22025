@@ -1,7 +1,7 @@
 package common;
 
 import java.io.Serializable;
-import java.util.List; // [추가] List 임포트
+import java.util.List;
 
 //*******************************************************************
 // Name : CommandDTO
@@ -21,6 +21,13 @@ public class CommandDTO implements Serializable {
     // [추가] 여러 계좌 정보를 담기 위한 리스트 필드
     private List<String> accountList;
 
+    // [추가] 관리자 모드 및 고객 정보 전달을 위한 필드
+    private String userName;
+    private String userPhone;
+    private String userAddress;
+    private AccountType accountType; // 계좌 생성 시 필요
+    private String errorMessage;     // 에러 메시지 전달용
+
     public CommandDTO() {
     }
 
@@ -28,6 +35,7 @@ public class CommandDTO implements Serializable {
         this.requestType = requestType;
     }
 
+    // (기존 생성자들 유지...)
     public CommandDTO(ResponseType responseType) {
         this.responseType = responseType;
     }
@@ -91,7 +99,22 @@ public class CommandDTO implements Serializable {
     public ResponseType getResponseType() { return responseType; }
     public void setResponseType(ResponseType responseType) { this.responseType = responseType; }
 
-    // [추가] accountList Getter/Setter
     public List<String> getAccountList() { return accountList; }
     public void setAccountList(List<String> accountList) { this.accountList = accountList; }
+
+    // [추가된 Getter/Setter]
+    public String getUserName() { return userName; }
+    public void setUserName(String userName) { this.userName = userName; }
+
+    public String getUserPhone() { return userPhone; }
+    public void setUserPhone(String userPhone) { this.userPhone = userPhone; }
+
+    public String getUserAddress() { return userAddress; }
+    public void setUserAddress(String userAddress) { this.userAddress = userAddress; }
+
+    public AccountType getAccountType() { return accountType; }
+    public void setAccountType(AccountType accountType) { this.accountType = accountType; }
+
+    public String getErrorMessage() { return errorMessage; }
+    public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
 }

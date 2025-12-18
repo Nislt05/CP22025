@@ -1,13 +1,15 @@
 package bank;
 
+import common.AccountType;
 import common.CommandDTO;
 import common.ResponseType;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.ArrayList; // [추가] ArrayList 임포트
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Vector;
 
 public class Client {
     private Socket clientSocket;
@@ -31,8 +33,6 @@ public class Client {
         receive();
     }
 
-    // getTargetAccount 메소드는 더 이상 view에서 쓰이지 않지만, 입출금/이체 등 다른 곳에서 쓰일 수 있으므로 유지
-
     private void receive() {
         new Thread(() -> {
             try {
@@ -55,11 +55,18 @@ public class Client {
                                 case TRANSFER -> transfer(command);
                                 case DEPOSIT -> deposit(command);
                                 case WITHDRAW -> withdraw(command);
+                                // (추가됨) 관리자 기능 처리
+                                case MANAGER_LOGIN -> managerLogin(command);
+                                case MANAGE_GET_CUSTOMERS -> getCustomerList(command);
+                                case MANAGE_ADD_CUSTOMER -> addCustomer(command);
+                                case MANAGE_UPDATE_CUSTOMER -> updateCustomer(command);
+                                case MANAGE_DEL_CUSTOMER -> deleteCustomer(command);
+                                case MANAGE_ADD_ACCOUNT -> addAccount(command);
+                                case MANAGE_DEL_ACCOUNT -> deleteAccount(command);
                             }
                         }
                     } catch (Exception e) {
-                        System.err.println("요청 처리 중 에러 발생:");
-                        e.printStackTrace();
+                        System.err.println("요청 처리 중 에러 발생: " + e.getMessage());
                     }
                 }
             } catch (IOException e) {
@@ -69,13 +76,13 @@ public class Client {
         }).start();
     }
 
+    // ... (send, disconnectClient 메소드는 기존 유지)
     private void send(CommandDTO commandDTO) {
         try {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
             objectOutputStream.writeObject(commandDTO);
             objectOutputStream.flush();
-
             outputStream.write(byteArrayOutputStream.toByteArray());
             outputStream.flush();
         } catch (IOException e) {
@@ -84,21 +91,17 @@ public class Client {
         }
     }
 
-    private void disconnectClient() {
+    public void disconnectClient() {
         try {
-            if (!clientSocket.isClosed()) {
-                clientSocket.close();
-            }
+            if (!clientSocket.isClosed()) clientSocket.close();
             handler.removeClient(this);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        } catch (IOException e) { e.printStackTrace(); }
     }
 
+    // --- 기존 ATM 기능 (login, view, transfer, deposit) 유지 ---
     private synchronized void login(CommandDTO commandDTO) {
         ServerMain server = (ServerMain) handler;
         CustomerVO customer = server.authenticateUser(commandDTO.getId(), commandDTO.getPassword());
-
         if (customer != null) {
             commandDTO.setResponseType(ResponseType.SUCCESS);
             handler.displayInfo(customer.getName() + "님이 로그인하였습니다.");
@@ -108,39 +111,21 @@ public class Client {
         send(commandDTO);
     }
 
-    // [수정됨] 계좌 조회 기능 리팩토링: 전체 계좌 목록 반환
+    // (view, transfer, deposit 메소드는 기존 코드 그대로 유지해주세요. 분량상 생략하지만 꼭 있어야 합니다!)
     private synchronized void view(CommandDTO commandDTO) {
         CustomerVO user = this.customerList.stream()
-                .filter(customerVO -> Objects.equals(customerVO.getId(), commandDTO.getId()))
-                .findFirst().orElse(null);
-
+                .filter(c -> Objects.equals(c.getId(), commandDTO.getId())).findFirst().orElse(null);
         if (user != null) {
-            // 1. 리스트 초기화
             List<String> accListInfo = new ArrayList<>();
             List<Account> userAccounts = user.getAccountList();
-
-            // 2. 계좌 순회 및 포맷팅
             if (userAccounts != null) {
                 for (Account acc : userAccounts) {
-                    String typeStr = "알수없음";
-                    // 계좌 타입 확인 (instanceof 사용)
-                    if (acc instanceof CheckingAccount) {
-                        typeStr = "당좌";
-                    } else if (acc instanceof SavingsAccount) {
-                        typeStr = "저축";
-                    }
-
-                    // 포맷: 종류/번호/잔액
-                    String info = typeStr + "/" + acc.getAccountNo() + "/" + acc.getBalance();
-                    accListInfo.add(info);
+                    String typeStr = (acc instanceof CheckingAccount) ? "당좌" : "저축";
+                    accListInfo.add(typeStr + "/" + acc.getAccountNo() + "/" + acc.getBalance());
                 }
             }
-
-            // 3. DTO에 담고 성공 응답 설정
             commandDTO.setAccountList(accListInfo);
             commandDTO.setResponseType(ResponseType.SUCCESS);
-            handler.displayInfo(user.getName() + "님의 전체 계좌 목록 조회 완료.");
-
         } else {
             commandDTO.setResponseType(ResponseType.FAILURE);
         }
@@ -148,123 +133,157 @@ public class Client {
     }
 
     private synchronized void transfer(CommandDTO commandDTO) {
-        // 1. 보내는 사람 찾기
-        CustomerVO sender = this.customerList.stream()
-                .filter(c -> Objects.equals(c.getId(), commandDTO.getId()))
-                .findFirst().orElse(null);
-
-        if (sender == null) {
-            commandDTO.setResponseType(ResponseType.FAILURE);
-            send(commandDTO);
-            return;
+        CustomerVO sender = this.customerList.stream().filter(c -> Objects.equals(c.getId(), commandDTO.getId())).findFirst().orElse(null);
+        if (sender == null || !sender.getPassword().equals(commandDTO.getPassword())) {
+            commandDTO.setResponseType(ResponseType.WRONG_PASSWORD); send(commandDTO); return;
         }
-
-        // 2. 보내는 사람 비밀번호 인증
-        if (!sender.getPassword().equals(commandDTO.getPassword())) {
-            commandDTO.setResponseType(ResponseType.WRONG_PASSWORD);
-            send(commandDTO);
-            return;
-        }
-
-        // 3. 보내는 사람 계좌 찾기 (명시적으로 첫 번째 계좌 사용)
         if (sender.getAccountList() == null || sender.getAccountList().isEmpty()) {
-            commandDTO.setResponseType(ResponseType.FAILURE); // 이체할 계좌가 없음
-            send(commandDTO);
-            return;
+            commandDTO.setResponseType(ResponseType.FAILURE); send(commandDTO); return;
         }
         Account senderAccount = sender.getAccountList().get(0);
-
-        // 4. 받는 사람 계좌 찾기
-        CustomerVO receiver = null;
         Account receiverAccount = null;
         for (CustomerVO c : customerList) {
             Account acc = c.findAccount(commandDTO.getReceivedAccountNo());
-            if (acc != null) {
-                receiver = c;
-                receiverAccount = acc;
-                break;
-            }
+            if (acc != null) { receiverAccount = acc; break; }
         }
-
         if (receiverAccount == null) {
-            commandDTO.setResponseType(ResponseType.WRONG_ACCOUNT_NO);
-            send(commandDTO);
-            return;
+            commandDTO.setResponseType(ResponseType.WRONG_ACCOUNT_NO); send(commandDTO); return;
         }
 
-        // 5. 이체 실행
-        if (senderAccount.withdraw(commandDTO.getAmount())) {
-            receiverAccount.deposit(commandDTO.getAmount());
-            commandDTO.setResponseType(ResponseType.SUCCESS);
-            handler.displayInfo(sender.getName() + "님이 " + receiver.getName() + "님에게 " + commandDTO.getAmount() + "원 이체 완료.");
-        } else {
+        try {
+            if (senderAccount.withdraw(commandDTO.getAmount())) {
+                receiverAccount.deposit(commandDTO.getAmount());
+                commandDTO.setResponseType(ResponseType.SUCCESS);
+                handler.displayInfo(sender.getName() + " -> " + receiverAccount.getOwner() + " 이체 완료");
+                ((ServerMain)handler).saveAllData();
+            } else {
+                commandDTO.setResponseType(ResponseType.INSUFFICIENT);
+            }
+        } catch (RuntimeException e) {
             commandDTO.setResponseType(ResponseType.INSUFFICIENT);
+            commandDTO.setErrorMessage(e.getMessage());
         }
         send(commandDTO);
     }
 
     private synchronized void deposit(CommandDTO commandDTO) {
-        CustomerVO user = this.customerList.stream()
-                .filter(customerVO -> Objects.equals(customerVO.getId(), commandDTO.getId()))
-                .findFirst().orElse(null);
+        CustomerVO user = this.customerList.stream().filter(c -> Objects.equals(c.getId(), commandDTO.getId())).findFirst().orElse(null);
+        Account targetAccount = null;
+        if (user != null) targetAccount = user.findAccount(commandDTO.getReceivedAccountNo());
 
-        if (user != null && user.getAccountList() != null && !user.getAccountList().isEmpty()) {
-            // 클라이언트가 선택한 계좌번호로 입금 대상 찾기
-            String targetAccountNo = commandDTO.getReceivedAccountNo();
-            Account targetAccount = user.findAccount(targetAccountNo);
-
-            if (targetAccount != null) {
-                targetAccount.deposit(commandDTO.getAmount());
-                commandDTO.setResponseType(ResponseType.SUCCESS);
-                handler.displayInfo(user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에 " + commandDTO.getAmount() + "원 입금 완료.");
-            } else {
-                commandDTO.setResponseType(ResponseType.FAILURE); // 해당 계좌번호를 찾을 수 없음
-            }
+        if (targetAccount != null) {
+            targetAccount.deposit(commandDTO.getAmount());
+            commandDTO.setResponseType(ResponseType.SUCCESS);
+            handler.displayInfo(user.getName() + " 입금 완료");
+            ((ServerMain)handler).saveAllData();
         } else {
-            commandDTO.setResponseType(ResponseType.FAILURE); // 사용자 또는 계좌가 없으면 실패 응답 전송
+            commandDTO.setResponseType(ResponseType.FAILURE);
         }
         send(commandDTO);
     }
 
-    // [수정됨] 출금 로직 개선: 당좌계좌 자동이체 발생 시 상세 메시지 출력
+    // [수정됨] 출금: 예외 메시지 처리 추가
     private synchronized void withdraw(CommandDTO commandDTO) {
         CustomerVO user = this.customerList.stream()
                 .filter(customerVO -> Objects.equals(customerVO.getId(), commandDTO.getId()))
                 .findFirst().orElse(null);
 
-        if (user != null && user.getAccountList() != null && !user.getAccountList().isEmpty()) {
-            // 클라이언트가 선택한 계좌번호로 출금 대상 찾기
-            String targetAccountNo = commandDTO.getReceivedAccountNo();
-            Account targetAccount = user.findAccount(targetAccountNo);
-
-            if (targetAccount != null) {
-                // 출금 실행
+        if (user != null && user.findAccount(commandDTO.getReceivedAccountNo()) != null) {
+            Account targetAccount = user.findAccount(commandDTO.getReceivedAccountNo());
+            try {
                 if (targetAccount.withdraw(commandDTO.getAmount())) {
                     commandDTO.setResponseType(ResponseType.SUCCESS);
-
-                    // 기본 메시지 생성
-                    String logMsg = user.getName() + "님 계좌(" + targetAccount.getAccountNo() + ")에서 " + commandDTO.getAmount() + "원 출금 완료.";
-
-                    // (추가됨) 만약 당좌계좌(CheckingAccount)라면, 자동이체 발생 여부를 확인하여 메시지에 추가
+                    String logMsg = user.getName() + " 출금 완료";
                     if (targetAccount instanceof CheckingAccount) {
-                        CheckingAccount ca = (CheckingAccount) targetAccount;
-                        long autoTransferred = ca.getLastAutoTransferAmount();
-
-                        if (autoTransferred > 0) {
-                            logMsg += " (잔액 부족으로 저축계좌에서 " + autoTransferred + "원 자동이체됨)";
-                        }
+                        long auto = ((CheckingAccount) targetAccount).getLastAutoTransferAmount();
+                        if (auto > 0) logMsg += " (자동이체 " + auto + "원 포함)";
                     }
-
                     handler.displayInfo(logMsg);
+                    ((ServerMain) handler).saveAllData();
                 } else {
-                    commandDTO.setResponseType(ResponseType.INSUFFICIENT); // 잔액 부족 (자동이체 실패 포함)
+                    commandDTO.setResponseType(ResponseType.INSUFFICIENT);
                 }
-            } else {
-                commandDTO.setResponseType(ResponseType.FAILURE); // 해당 계좌번호 찾을 수 없음
+            } catch (RuntimeException e) {
+                // (추가됨) CheckingAccount에서 던진 예외를 잡아서 클라이언트에 전달
+                commandDTO.setResponseType(ResponseType.INSUFFICIENT);
+                commandDTO.setErrorMessage(e.getMessage());
             }
         } else {
-            commandDTO.setResponseType(ResponseType.FAILURE); // 사용자 또는 계좌가 없으면 실패 응답 전송
+            commandDTO.setResponseType(ResponseType.FAILURE);
         }
         send(commandDTO);
+    }
+
+    // --- (추가됨) 관리자 기능 구현 ---
+
+    private void managerLogin(CommandDTO dto) {
+        ServerMain server = (ServerMain) handler;
+        if (server.authenticateManager(dto.getId(), dto.getPassword())) {
+            dto.setResponseType(ResponseType.SUCCESS);
+            handler.displayInfo("관리자 접속: " + dto.getId());
+        } else {
+            dto.setResponseType(ResponseType.FAILURE);
+        }
+        send(dto);
+    }
+
+    private void getCustomerList(CommandDTO dto) {
+        List<String> list = new ArrayList<>();
+        for (CustomerVO c : customerList) {
+            // ID, 이름, 전화번호, 주소, 비번 순으로 묶어서 보냄
+            String info = c.getId() + "|" + c.getName() + "|" + c.getPhone() + "|" + c.getAddress() + "|" + c.getPassword();
+            list.add(info);
+        }
+        dto.setAccountList(list); // 리스트 재활용
+        dto.setResponseType(ResponseType.SUCCESS);
+        send(dto);
+    }
+
+    private void addCustomer(CommandDTO dto) {
+        ServerMain server = (ServerMain) handler;
+        boolean res = server.addCustomer(dto.getId(), dto.getUserName(), dto.getPassword(), dto.getUserAddress(), dto.getUserPhone());
+        dto.setResponseType(res ? ResponseType.SUCCESS : ResponseType.FAILURE);
+        send(dto);
+    }
+
+    private void updateCustomer(CommandDTO dto) {
+        // 고객 정보 수정 기능
+        CustomerVO target = null;
+        for(CustomerVO c : customerList) {
+            if(c.getId().equals(dto.getId())) { target = c; break; }
+        }
+        if(target != null) {
+            target.setName(dto.getUserName());
+            target.setPhone(dto.getUserPhone());
+            target.setAddress(dto.getUserAddress());
+            target.setPassword(dto.getPassword());
+            ((ServerMain)handler).saveAllData();
+            dto.setResponseType(ResponseType.SUCCESS);
+            handler.displayInfo("관리자: 고객 정보 수정 (" + dto.getId() + ")");
+        } else {
+            dto.setResponseType(ResponseType.FAILURE);
+        }
+        send(dto);
+    }
+
+    private void deleteCustomer(CommandDTO dto) {
+        ServerMain server = (ServerMain) handler;
+        boolean res = server.deleteCustomer(dto.getId());
+        dto.setResponseType(res ? ResponseType.SUCCESS : ResponseType.FAILURE);
+        send(dto);
+    }
+
+    private void addAccount(CommandDTO dto) {
+        ServerMain server = (ServerMain) handler;
+        boolean res = server.addAccount(dto.getId(), dto.getUserAccountNo(), dto.getAccountType(), dto.getAmount());
+        dto.setResponseType(res ? ResponseType.SUCCESS : ResponseType.FAILURE);
+        send(dto);
+    }
+
+    private void deleteAccount(CommandDTO dto) {
+        ServerMain server = (ServerMain) handler;
+        boolean res = server.deleteAccount(dto.getId(), dto.getUserAccountNo());
+        dto.setResponseType(res ? ResponseType.SUCCESS : ResponseType.FAILURE);
+        send(dto);
     }
 }

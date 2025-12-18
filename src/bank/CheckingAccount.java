@@ -9,10 +9,7 @@ import java.sql.Date;
 // Requirements : 당좌예금계좌 구현
 //*******************************************************************
 public class CheckingAccount extends Account {
-    // 연결된 저축예금계좌
     private SavingsAccount linkedSavings;
-
-    // (추가됨) 방금 발생한 자동이체 금액을 임시 저장하는 변수
     private long lastAutoTransferAmount = 0;
 
     public CheckingAccount(String owner, String accountNo, long balance, Date openDate) {
@@ -20,16 +17,8 @@ public class CheckingAccount extends Account {
     }
 
     public SavingsAccount getLinkedSavings() { return linkedSavings; }
-
-    // 저축계좌와 연결 설정
-    public void setLinkedSavings(SavingsAccount linkedSavings) {
-        this.linkedSavings = linkedSavings;
-    }
-
-    // (추가됨) 외부에서 자동이체 금액을 확인할 수 있는 Getter
-    public long getLastAutoTransferAmount() {
-        return lastAutoTransferAmount;
-    }
+    public void setLinkedSavings(SavingsAccount linkedSavings) { this.linkedSavings = linkedSavings; }
+    public long getLastAutoTransferAmount() { return lastAutoTransferAmount; }
 
     @Override
     public AccountType getAccountType() {
@@ -39,7 +28,6 @@ public class CheckingAccount extends Account {
     // 출금 재정의: 잔액 부족 시 자동이체 로직
     @Override
     public boolean withdraw(long amount) {
-        // 매 출금 시도마다 자동이체 기록 초기화
         lastAutoTransferAmount = 0;
 
         if (balance >= amount) {
@@ -50,21 +38,21 @@ public class CheckingAccount extends Account {
             if (linkedSavings != null) {
                 long needed = amount - balance;
 
-                // 저축계좌에 잔액이 충분한지 확인
+                // (수정됨) 저축계좌 잔액 확인
                 if (linkedSavings.getBalance() >= needed) {
-                    // 자동 이체 수행
                     linkedSavings.withdraw(needed);
-                    balance += needed; // 부족한 만큼 채움
-                    balance -= amount; // 원래 출금 수행 (결국 0원이 됨)
-
-                    // (추가됨) 얼마를 가져왔는지 기록
+                    balance += needed;
+                    balance -= amount;
                     lastAutoTransferAmount = needed;
-
                     System.out.println("알림: 잔액 부족으로 연결된 저축계좌에서 " + needed + "원이 자동 이체되었습니다.");
                     return true;
+                } else {
+                    // (추가됨) 둘 다 잔액이 부족한 경우 RuntimeException 발생 -> Client에서 캐치
+                    throw new RuntimeException("당좌계좌 및 연결된 저축계좌의 잔액이 모두 부족합니다.");
                 }
+            } else {
+                throw new RuntimeException("잔액 부족 (연결된 저축계좌 없음)");
             }
-            return false; // 연결된 계좌 없거나 잔액 부족
         }
     }
 
